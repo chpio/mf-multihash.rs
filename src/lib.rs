@@ -86,7 +86,7 @@ pub fn encode(wanttype: HashTypes, input: &[u8]) -> io::Result<Vec<u8>> {
 ///     decode(&data).unwrap(),
 ///     Multihash {
 ///         alg: HashTypes::SHA2256,
-///         digest: &data[2..]
+///         digest: data[2..].to_vec()
 ///     }
 /// );
 /// ```
@@ -104,7 +104,7 @@ pub fn decode(input: &[u8]) -> io::Result<Multihash> {
             } else {
                 Ok(Multihash {
                     alg: alg,
-                    digest: &input[2..],
+                    digest: input[2..].to_vec(),
                 })
             }
         },
@@ -116,9 +116,9 @@ pub fn decode(input: &[u8]) -> io::Result<Multihash> {
 
 /// Represents a valid multihash, by associating the hash algorithm with the data
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Multihash<'a> {
+pub struct Multihash {
     pub alg: HashTypes,
-    pub digest: &'a [u8]
+    pub digest: Vec<u8>
 }
 
 /// Convert bytes to a hex representation
