@@ -14,17 +14,17 @@ pub enum HashTypes {
     /// Encoding unsupported
     Blake2b,
     /// Encoding unsupported
-    Blake2s
+    Blake2s,
 }
 
 impl HashTypes {
     /// Get the corresponding hash code
     pub fn code(&self) -> u8 {
         match *self {
-            HashTypes::SHA1    => 0x11,
+            HashTypes::SHA1 => 0x11,
             HashTypes::SHA2256 => 0x12,
             HashTypes::SHA2512 => 0x13,
-            HashTypes::SHA3    => 0x14,
+            HashTypes::SHA3 => 0x14,
             HashTypes::Blake2b => 0x40,
             HashTypes::Blake2s => 0x41,
         }
@@ -33,24 +33,24 @@ impl HashTypes {
     /// Get the hash length in bytes
     pub fn size(&self) -> u8 {
         match *self {
-	    HashTypes::SHA1     => 20,
-	    HashTypes::SHA2256  => 32,
-	    HashTypes::SHA2512  => 64,
-	    HashTypes::SHA3     => 64,
-	    HashTypes::Blake2b  => 64,
-	    HashTypes::Blake2s  => 32,
+            HashTypes::SHA1 => 20,
+            HashTypes::SHA2256 => 32,
+            HashTypes::SHA2512 => 64,
+            HashTypes::SHA3 => 64,
+            HashTypes::Blake2b => 64,
+            HashTypes::Blake2s => 32,
         }
     }
 
     /// Get the human readable name
     pub fn name(&self) -> &str {
         match *self {
-	    HashTypes::SHA1     => "SHA1",
-	    HashTypes::SHA2256  => "SHA2-256",
-	    HashTypes::SHA2512  => "SHA2-512",
-	    HashTypes::SHA3     => "SHA3",
-	    HashTypes::Blake2b  => "Blake-2b",
-	    HashTypes::Blake2s  => "Blake-2s",
+            HashTypes::SHA1 => "SHA1",
+            HashTypes::SHA2256 => "SHA2-256",
+            HashTypes::SHA2512 => "SHA2-512",
+            HashTypes::SHA3 => "SHA3",
+            HashTypes::Blake2b => "Blake-2b",
+            HashTypes::Blake2s => "Blake-2s",
         }
     }
 
@@ -62,7 +62,7 @@ impl HashTypes {
             0x14 => Some(HashTypes::SHA3),
             0x40 => Some(HashTypes::Blake2b),
             0x41 => Some(HashTypes::Blake2s),
-            _    => None
+            _ => None,
         }
     }
 }
