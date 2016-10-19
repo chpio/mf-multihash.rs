@@ -1,17 +1,12 @@
 [package]
-name = "multihash"
+authors = ["dignifiedquire <dignifiedquire@gmail.com>"]
 description = "Implementation of the multihash format"
 homepage = "https://github.com/Dignifiedquire/rust-multihash"
-
 keywords = ["multihash", "ipfs"]
-
+license = "MIT"
+name = "multihash"
+readme = "README.md"
 version = "0.2.0"
 
-authors = ["dignifiedquire <dignifiedquire@gmail.com>"]
-
-license = "MIT"
-
-readme = "README.md"
-
 [dependencies]
-sodiumoxide = "~0.0.9"
+rust-crypto = "^0.2"
