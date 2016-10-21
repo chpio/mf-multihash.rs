@@ -15,7 +15,6 @@
 - [Install](#install)
 - [Usage](#usage)
 - [Supported Hash Types](#supported-hash-types)
-- [Dependencies](#dependencies)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
 - [License](#license)
@@ -36,24 +35,31 @@ multihash = "*"
 ```
 
 ```rust
-crate extern multihash
+extern crate multihash;
 
-use multihash::{encode, decode, HashType};
+use multihash::Multihash;
 
-let hash = encode(HashTpype:SHA2256, "my hash").unwrap();
-let multi = decode(&hash).unwrap();
+let hash: Multihash = Multihash::sha2_256("my hash".as_bytes());
+let multi: Vec<u8> = hash.to_bytes();
 ```
 
 ## Supported Hash Types
 
-* `SHA2 256`
-* `SHA2 512`
-
-
-## Dependencies
-
-This uses [libsodium](https://github.com/jedisct1/libsodium) and [sodiumoxide](https://github.com/dnaq/sodiumoxide)
-for the hashing so it depends on libsodium being installed.
+* `SHA1`
+* `SHA2`
+  * `SHA2 256`
+  * `SHA2 512`
+* `SHA3`
+  * `SHA3 224`
+  * `SHA3 256`
+  * `SHA3 384`
+  * `SHA3 512`
+* `SHAKE`
+  * `SHAKE 128`
+  * `SHAKE 256`
+* `BLAKE`
+  * `BLAKE2B`
+  * `BLAKE2S`
 
 ## Maintainers
 
