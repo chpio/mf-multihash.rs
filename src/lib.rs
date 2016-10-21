@@ -20,7 +20,9 @@ missing_debug_implementations)]
 /// Representation of a Multiaddr.
 
 extern crate crypto;
+extern crate arrayvec;
 
+use arrayvec::ArrayVec;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use crypto::sha2::{Sha256, Sha512};
@@ -31,10 +33,10 @@ use crypto::blake2s::Blake2s;
 macro_rules! impl_multihash {
     ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $size:expr, $hasher:expr;)*) => {
         /// Represents a valid multihash, by associating the hash algorithm with the data
-//        #[derive(PartialEq, Eq, Clone, Debug)]
+        #[derive(PartialEq, Eq, Clone, Debug)]
         pub enum Multihash {
             $(
-                $name([u8; $size])
+                $name(ArrayVec<[u8; $size]>)
             ),*
         }
 
@@ -66,7 +68,7 @@ macro_rules! impl_multihash {
                             for (&i, b) in input[2..].iter().zip(buf.iter_mut()) {
                                 *b = i;
                             }
-                            Some(Multihash::$name(buf))
+                            Some(Multihash::$name(ArrayVec::from(buf)))
                         }
                     ),*
                     _ => None,
@@ -108,7 +110,7 @@ macro_rules! impl_multihash {
                     let mut hasher = $hasher;
                     hasher.input(input);
                     hasher.result(&mut buf);
-                    Multihash::$name(buf)
+                    Multihash::$name(ArrayVec::from(buf))
                 }
             )*
         }
