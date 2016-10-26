@@ -21,7 +21,9 @@ missing_debug_implementations)]
 
 extern crate crypto;
 extern crate arrayvec;
+extern crate varint;
 
+use std::io;
 use arrayvec::ArrayVec;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
@@ -42,36 +44,41 @@ macro_rules! impl_multihash {
 
         impl Multihash {
             /// Converts the Multihash into bytes
-            pub fn to_bytes(&self) -> Vec<u8> {
+            pub fn to_bytes(&self, output: &mut Vec<u8>) -> io::Result<()> {
                 match self {
                     $(
                         &Multihash::$name(ref hash) => {
-                            let mut b = Vec::with_capacity(2 + $size);
-                            b.push($code);
-                            b.push($size);
-                            b.extend_from_slice(hash);
-                            b
+                            output.reserve_exact(
+                                varint::size_u($code) + varint::size_u($size) + $size
+                            );
+                            try!(varint::write_u($code, output));
+                            try!(varint::write_u($size, output));
+                            output.extend_from_slice(hash);
+                            Ok(())
                         }
                     ),*
                 }
             }
 
             /// Converts bytes into a Multihash
-            pub fn from_bytes(input: &[u8]) -> Option<Multihash> {
-                match input[0] {
+            pub fn from_bytes(input: &[u8]) -> io::Result<(Multihash, &[u8])> {
+                let (algo, input) = try!(varint::read_u(input));
+                let (size, input) = try!(varint::read_u(input));
+                match algo {
                     $(
                         $code => {
+                            if size != $size || input.len() < $size {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::Other,
+                                    "Invalid input length"
+                                ));
+                            }
                             let mut buf: [u8; $size] = [0; $size];
-                            if input[1] != $size || input.len() != $size + 2 {
-                                panic!("invalid hash size");
-                            }
-                            for (&i, b) in input[2..].iter().zip(buf.iter_mut()) {
-                                *b = i;
-                            }
-                            Some(Multihash::$name(ArrayVec::from(buf)))
+                            buf.copy_from_slice(&input[..$size]);
+                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[$size..]))
                         }
                     ),*
-                    _ => None,
+                    _ => Err(io::Error::new(io::ErrorKind::Other, "Unsupported hash type")),
                 }
             }
 
@@ -98,6 +105,14 @@ macro_rules! impl_multihash {
                 match self {
                     $(
                         &Multihash::$name(_) => $name_hr
+                    ),*
+                }
+            }
+
+            pub fn code(&self) -> u8 {
+                match self {
+                    $(
+                        &Multihash::$name(_) => $code
                     ),*
                 }
             }

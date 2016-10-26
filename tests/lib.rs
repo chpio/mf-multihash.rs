@@ -14,28 +14,45 @@ fn hex_to_bytes(s: &str) -> Vec<u8> {
 }
 
 #[test]
-fn multihash_encode() {
+fn multihash_serialize() {
+    let mut out = Vec::new();
+    Multihash::sha2_256("helloworld".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
-        Multihash::sha2_256("helloworld".as_bytes()).to_bytes(),
+        out,
         hex_to_bytes("1220936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af").as_slice()
     );
+    
+    let mut out = Vec::new();
+    Multihash::sha2_256("beep boop".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
-        Multihash::sha2_256("beep boop".as_bytes()).to_bytes(),
+        out,
         hex_to_bytes("122090ea688e275d580567325032492b597bc77221c62493e76330b85ddda191ef7c").as_slice()
     );
+    
+    let mut out = Vec::new();
+    Multihash::sha2_512("hello world".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
-        Multihash::sha2_512("hello world".as_bytes()).to_bytes(),
+        out,
         hex_to_bytes("1340309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f").as_slice()
     );
 }
 
 #[test]
-fn multihash_decode() {
-    let hash = Multihash::sha2_256("helloworld".as_bytes());
+fn multihash_deserialize() {
+    let buf = hex_to_bytes("1220936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af0000");
+    let (hash, slice) = Multihash::from_bytes(buf.as_slice()).unwrap();
     assert!(match hash {
         Multihash::SHA2256(_) => true,
         _ => false,
-    })
+    });
+    assert_eq!(
+        hash.hash(),
+        hex_to_bytes("936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af").as_slice()
+    );
+    assert_eq!(
+        slice,
+        hex_to_bytes("0000").as_slice()
+    );
 }
 
 #[test]
