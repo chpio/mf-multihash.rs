@@ -89,7 +89,7 @@ macro_rules! impl_multihash {
             }
         }
 
-        #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+        #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
         pub struct HashConfig {
             algo: HashAlgo,
             len: usize,
@@ -111,8 +111,12 @@ macro_rules! impl_multihash {
                 self.len
             }
 
-            pub fn set_len(&mut self, len: usize) {
-                self.len = len;
+            pub fn set_len(&self, len: usize) -> HashConfig {
+                assert!(len <= self.algo.max_len(), "Max algo length exceeded");
+                HashConfig {
+                    len: len,
+                    ..*self
+                }
             }
 
             pub fn hash(&self, input: &[u8]) -> Multihash {
@@ -248,11 +252,7 @@ macro_rules! impl_multihash {
             }
 
             pub fn config(&self) -> Option<HashConfig> {
-                self.algo().map(|a| {
-                    let mut c = a.config();
-                    c.set_len(self.len());
-                    c
-                })
+                self.algo().map(|a| a.config().set_len(self.len()))
             }
         }
     }
