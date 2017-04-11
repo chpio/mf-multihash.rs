@@ -34,15 +34,6 @@ First add this to your `Cargo.toml`
 multihash = "*"
 ```
 
-```rust
-extern crate multihash;
-
-use multihash::Multihash;
-
-let hash: Multihash = Multihash::sha2_256("my hash".as_bytes());
-let multi: Vec<u8> = hash.to_bytes();
-```
-
 ## Supported Hash Types
 
 * `SHA1`
