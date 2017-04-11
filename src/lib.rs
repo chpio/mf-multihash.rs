@@ -33,7 +33,7 @@ use crypto::blake2b::Blake2b;
 use crypto::blake2s::Blake2s;
 
 macro_rules! impl_multihash {
-    ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $size:expr, $hasher:expr;)*) => {
+    ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $len:expr, $hasher:expr;)*) => {
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum HashAlgo {
             $(
@@ -54,11 +54,11 @@ macro_rules! impl_multihash {
                 self.config().hash(input)
             }
 
-            /// Returns the size of the hash data
-            pub fn max_size(&self) -> usize {
+            /// Returns the len of the hash data
+            pub fn max_len(&self) -> usize {
                 match self {
                     $(
-                        &HashAlgo::$name => $size,
+                        &HashAlgo::$name => $len,
                     )*
                 }
             }
@@ -84,14 +84,14 @@ macro_rules! impl_multihash {
         #[derive(PartialEq, Eq, Clone, Debug)]
         pub struct HashConfig {
             algo: HashAlgo,
-            size: usize,
+            len: usize,
         }
 
         impl HashConfig {
             pub fn new(algo: HashAlgo) -> HashConfig {
                 HashConfig {
                     algo: algo,
-                    size: algo.max_size(),
+                    len: algo.max_len(),
                 }
             }
 
@@ -99,24 +99,24 @@ macro_rules! impl_multihash {
                 self.algo
             }
 
-            pub fn size(&self) -> usize {
-                self.size
+            pub fn len(&self) -> usize {
+                self.len
             }
 
-            pub fn set_size(&mut self, size: usize) {
-                self.size = size;
+            pub fn set_len(&mut self, len: usize) {
+                self.len = len;
             }
 
             pub fn hash(&self, input: &[u8]) -> Multihash {
                 match self.algo {
                     $(
                         HashAlgo::$name => {
-                            let mut output: [u8; $size] = [0; $size];
+                            let mut output: [u8; $len] = [0; $len];
                             let mut hasher = $hasher;
                             hasher.input(input);
                             hasher.result(&mut output);
                             let mut arr = ArrayVec::new();
-                            arr.extend(output[..self.size].iter().cloned());
+                            arr.extend(output[..self.len].iter().cloned());
                             Multihash::$name(arr)
                         },
                     )*
@@ -128,7 +128,7 @@ macro_rules! impl_multihash {
         #[derive(PartialEq, Eq, Clone, Debug)]
         pub enum Multihash {
             $(
-                $name(ArrayVec<[u8; $size]>),
+                $name(ArrayVec<[u8; $len]>),
             )*
             Unknown(u64, Vec<u8>),
         }
@@ -140,19 +140,19 @@ macro_rules! impl_multihash {
                     $(
                         &Multihash::$name(ref hash) => {
                             output.reserve_exact(
-                                varint::size_u($code) + varint::size_u($size) + $size
+                                varint::size_u($code) + varint::size_u($len) + $len
                             );
                             varint::write_u($code, output)?;
-                            varint::write_u($size, output)?;
+                            varint::write_u($len, output)?;
                             output.extend_from_slice(hash);
                         },
                     )*
                     &Multihash::Unknown(code, ref hash) => {
-                        let size = hash.len();
-                         // TODO:  make "size as u64" more overflow proof
-                        output.reserve_exact(varint::size_u(code) + varint::size_u(size as u64) + size);
+                        let len = hash.len();
+                         // TODO:  make "len as u64" more overflow proof
+                        output.reserve_exact(varint::size_u(code) + varint::size_u(len as u64) + len);
                         varint::write_u(code, output)?;
-                        varint::write_u(size as u64, output)?;
+                        varint::write_u(len as u64, output)?;
                         output.extend_from_slice(hash);
                     },
                 }
@@ -162,32 +162,32 @@ macro_rules! impl_multihash {
             /// Converts bytes into a Multihash
             pub fn from_bytes(input: &[u8]) -> io::Result<(Multihash, &[u8])> {
                 let (code, input) = varint::read_u(input)?;
-                let (size, input) = varint::read_u(input)?;
+                let (len, input) = varint::read_u(input)?;
                 match code {
                     $(
                         $code => {
-                            if size != $size || input.len() < $size {
+                            if len != $len || input.len() < $len {
                                 return Err(io::Error::new(
                                     io::ErrorKind::Other,
                                     "Invalid input length"
                                 ));
                             }
-                            let mut buf: [u8; $size] = [0; $size];
-                            buf.copy_from_slice(&input[..$size]);
-                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[$size..]))
+                            let mut buf: [u8; $len] = [0; $len];
+                            buf.copy_from_slice(&input[..$len]);
+                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[$len..]))
                         },
                     )*
                     _ => {
-                        if size > 128 {
+                        if len > 128 {
                             return Err(io::Error::new(
                                 io::ErrorKind::Other,
                                 "Input length exceeded for unknown algorithm"
                             ));
                         }
-                        let size = size as usize; // TODO: make overflow proof
-                        let mut buf = Vec::with_capacity(size);
-                        buf.copy_from_slice(&input[..size]);
-                        Ok((Multihash::Unknown(code, buf), &input[size..]))
+                        let len = len as usize; // TODO: make overflow proof
+                        let mut buf = Vec::with_capacity(len);
+                        buf.copy_from_slice(&input[..len]);
+                        Ok((Multihash::Unknown(code, buf), &input[len..]))
                     },
                 }
             }
@@ -202,8 +202,8 @@ macro_rules! impl_multihash {
                 }
             }
 
-            /// Returns the size of the hash data
-            pub fn size(&self) -> usize {
+            /// Returns the len of the hash data
+            pub fn len(&self) -> usize {
                 match self {
                     $(
                         &Multihash::$name(ref hash) => hash.len(),
@@ -244,7 +244,7 @@ macro_rules! impl_multihash {
             pub fn config(&self) -> Option<HashConfig> {
                 self.algo().map(|a| {
                     let mut c = a.config();
-                    c.set_size(self.size());
+                    c.set_len(self.len());
                     c
                 })
             }

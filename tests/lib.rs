@@ -59,6 +59,6 @@ fn multihash_deserialize() {
 fn hash_types() {
     let hash = HashAlgo::SHA2256.hash(&[]);
 
-    assert_eq!(hash.size(), 32);
+    assert_eq!(hash.len(), 32);
     assert_eq!(hash.name(), "SHA2-256");
 }
