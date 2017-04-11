@@ -34,6 +34,59 @@ use crypto::blake2s::Blake2s;
 
 macro_rules! impl_multihash {
     ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $size:expr, $hasher:expr;)*) => {
+        #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        pub enum HashAlgo {
+            $(
+                $name,
+            )*
+        }
+
+        impl HashAlgo {
+            /// ```rust
+            /// use multihash::{Multihash, HashAlgo};
+            /// let mh: Multihash = HashAlgo::SHA2256.hash("my hash".as_bytes());
+            /// ```
+            pub fn hash(&self, input: &[u8]) -> Multihash {
+                match self {
+                    $(
+                        &HashAlgo::$name => {
+                            let mut output: [u8; $size] = [0; $size];
+                            let mut hasher = $hasher;
+                            hasher.input(input);
+                            hasher.result(&mut output);
+                            Multihash::$name(ArrayVec::from(output))
+                        },
+                    )*
+                }
+            }
+
+            /// Returns the size of the hash data
+            pub fn size(&self) -> usize {
+                match self {
+                    $(
+                        &HashAlgo::$name => $size,
+                    )*
+                }
+            }
+
+            /// Returns the human readable name of the hash algorithm
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $(
+                        &HashAlgo::$name => $name_hr,
+                    )*
+                }
+            }
+
+            pub fn code(&self) -> u64 {
+                match self {
+                    $(
+                        &HashAlgo::$name => $code,
+                    )*
+                }
+            }
+        }
+
         /// Represents a valid multihash, by associating the hash algorithm with the data
         #[derive(PartialEq, Eq, Clone, Debug)]
         pub enum Multihash {
@@ -141,17 +194,15 @@ macro_rules! impl_multihash {
                 }
             }
 
-            $(
-                /// Hashes the input by the designated algorithm. Returns a
-                /// Multihash containing the hashed data.
-                pub fn $name_lc(input: &[u8]) -> Multihash {
-                    let mut buf: [u8; $size] = [0; $size];
-                    let mut hasher = $hasher;
-                    hasher.input(input);
-                    hasher.result(&mut buf);
-                    Multihash::$name(ArrayVec::from(buf))
+
+            pub fn algo(&self) -> Option<HashAlgo> {
+                match self {
+                    $(
+                        &Multihash::$name(_) => Some(HashAlgo::$name),
+                    )*
+                    &Multihash::Unknown(..) => None,
                 }
-            )*
+            }
         }
     }
 }

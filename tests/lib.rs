@@ -1,6 +1,6 @@
 extern crate multihash;
 
-use multihash::Multihash;
+use multihash::{Multihash, HashAlgo};
 
 /// Helper function to convert a hex-encoded byte array back into a bytearray
 fn hex_to_bytes(s: &str) -> Vec<u8> {
@@ -16,21 +16,21 @@ fn hex_to_bytes(s: &str) -> Vec<u8> {
 #[test]
 fn multihash_serialize() {
     let mut out = Vec::new();
-    Multihash::sha2_256("helloworld".as_bytes()).to_bytes(&mut out).unwrap();
+    HashAlgo::SHA2256.hash("helloworld".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
         out,
         hex_to_bytes("1220936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af").as_slice()
     );
-    
+
     let mut out = Vec::new();
-    Multihash::sha2_256("beep boop".as_bytes()).to_bytes(&mut out).unwrap();
+    HashAlgo::SHA2256.hash("beep boop".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
         out,
         hex_to_bytes("122090ea688e275d580567325032492b597bc77221c62493e76330b85ddda191ef7c").as_slice()
     );
-    
+
     let mut out = Vec::new();
-    Multihash::sha2_512("hello world".as_bytes()).to_bytes(&mut out).unwrap();
+    HashAlgo::SHA2512.hash("hello world".as_bytes()).to_bytes(&mut out).unwrap();
     assert_eq!(
         out,
         hex_to_bytes("1340309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f").as_slice()
@@ -57,8 +57,8 @@ fn multihash_deserialize() {
 
 #[test]
 fn hash_types() {
-    let hash = Multihash::sha2_256(&[]);
-    
+    let hash = HashAlgo::SHA2256.hash(&[]);
+
     assert_eq!(hash.size(), 32);
     assert_eq!(hash.name(), "SHA2-256");
 }
