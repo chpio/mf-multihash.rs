@@ -116,7 +116,7 @@ macro_rules! impl_multihash {
                             hasher.input(input);
                             hasher.result(&mut output);
                             let mut arr = ArrayVec::new();
-                            arr.extend(output[..self.len].iter().cloned());
+                            arr.extend(output[..self.len].into_iter().cloned());
                             Multihash::$name(arr)
                         },
                     )*
@@ -149,7 +149,6 @@ macro_rules! impl_multihash {
                     )*
                     &Multihash::Unknown(code, ref hash) => {
                         let len = hash.len();
-                         // TODO:  make "len as u64" more overflow proof
                         output.reserve_exact(varint::size_u(code) + varint::size_u(len as u64) + len);
                         varint::write_u(code, output)?;
                         varint::write_u(len as u64, output)?;
@@ -166,27 +165,28 @@ macro_rules! impl_multihash {
                 match code {
                     $(
                         $code => {
-                            if len != $len || input.len() < $len {
+                            if $len < len || input.len() < len as usize {
                                 return Err(io::Error::new(
                                     io::ErrorKind::Other,
                                     "Invalid input length"
                                 ));
                             }
-                            let mut buf: [u8; $len] = [0; $len];
-                            buf.copy_from_slice(&input[..$len]);
-                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[$len..]))
+                            let len = len as usize;
+                            let mut buf = ArrayVec::new();
+                            buf.extend(input[..len].into_iter().cloned());
+                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[len..]))
                         },
                     )*
                     _ => {
-                        if len > 128 {
+                        if 128 < len || input.len() < len as usize  {
                             return Err(io::Error::new(
                                 io::ErrorKind::Other,
                                 "Input length exceeded for unknown algorithm"
                             ));
                         }
-                        let len = len as usize; // TODO: make overflow proof
+                        let len = len as usize;
                         let mut buf = Vec::with_capacity(len);
-                        buf.copy_from_slice(&input[..len]);
+                        buf.extend(input[..len].into_iter().cloned());
                         Ok((Multihash::Unknown(code, buf), &input[len..]))
                     },
                 }
