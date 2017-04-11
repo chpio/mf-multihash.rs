@@ -42,7 +42,7 @@ macro_rules! gen_hashing {
 
 macro_rules! impl_multihash {
     ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $len:expr, $hash_lib:ident: $hash_algo:ident;)*) => {
-        #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
         pub enum HashAlgo {
             $(
                 $name,
@@ -89,7 +89,7 @@ macro_rules! impl_multihash {
             }
         }
 
-        #[derive(PartialEq, Eq, Clone, Debug)]
+        #[derive(PartialEq, Eq, Hash, Clone, Debug)]
         pub struct HashConfig {
             algo: HashAlgo,
             len: usize,
@@ -130,7 +130,7 @@ macro_rules! impl_multihash {
         }
 
         /// Represents a valid multihash, by associating the hash algorithm with the data
-        #[derive(PartialEq, Eq, Clone, Debug)]
+        #[derive(PartialEq, Eq, Hash, Clone, Debug)]
         pub enum Multihash {
             $(
                 $name(ArrayVec<[u8; $len]>),
