@@ -38,8 +38,9 @@ macro_rules! impl_multihash {
         #[derive(PartialEq, Eq, Clone, Debug)]
         pub enum Multihash {
             $(
-                $name(ArrayVec<[u8; $size]>)
-            ),*
+                $name(ArrayVec<[u8; $size]>),
+            )*
+            Unknown(u64, Vec<u8>),
         }
 
         impl Multihash {
@@ -51,20 +52,28 @@ macro_rules! impl_multihash {
                             output.reserve_exact(
                                 varint::size_u($code) + varint::size_u($size) + $size
                             );
-                            try!(varint::write_u($code, output));
-                            try!(varint::write_u($size, output));
+                            varint::write_u($code, output)?;
+                            varint::write_u($size, output)?;
                             output.extend_from_slice(hash);
-                            Ok(())
-                        }
-                    ),*
+                        },
+                    )*
+                    &Multihash::Unknown(code, ref hash) => {
+                        let size = hash.len();
+                         // TODO:  make "size as u64" more overflow proof
+                        output.reserve_exact(varint::size_u(code) + varint::size_u(size as u64) + size);
+                        varint::write_u(code, output)?;
+                        varint::write_u(size as u64, output)?;
+                        output.extend_from_slice(hash);
+                    },
                 }
+                Ok(())
             }
 
             /// Converts bytes into a Multihash
             pub fn from_bytes(input: &[u8]) -> io::Result<(Multihash, &[u8])> {
-                let (algo, input) = try!(varint::read_u(input));
-                let (size, input) = try!(varint::read_u(input));
-                match algo {
+                let (code, input) = varint::read_u(input)?;
+                let (size, input) = varint::read_u(input)?;
+                match code {
                     $(
                         $code => {
                             if size != $size || input.len() < $size {
@@ -76,9 +85,20 @@ macro_rules! impl_multihash {
                             let mut buf: [u8; $size] = [0; $size];
                             buf.copy_from_slice(&input[..$size]);
                             Ok((Multihash::$name(ArrayVec::from(buf)), &input[$size..]))
+                        },
+                    )*
+                    _ => {
+                        if size > 128 {
+                            return Err(io::Error::new(
+                                io::ErrorKind::Other,
+                                "Input length exceeded for unknown algorithm"
+                            ));
                         }
-                    ),*
-                    _ => Err(io::Error::new(io::ErrorKind::Other, "Unsupported hash type")),
+                        let size = size as usize; // TODO: make overflow proof
+                        let mut buf = Vec::with_capacity(size);
+                        buf.copy_from_slice(&input[..size]);
+                        Ok((Multihash::Unknown(code, buf), &input[size..]))
+                    },
                 }
             }
 
@@ -86,34 +106,38 @@ macro_rules! impl_multihash {
             pub fn hash(&self) -> &[u8] {
                 match self {
                     $(
-                        &Multihash::$name(ref hash) => hash
-                    ),*
+                        &Multihash::$name(ref hash) => hash,
+                    )*
+                    &Multihash::Unknown(_, ref hash) => hash,
                 }
             }
 
             /// Returns the size of the hash data
-            pub fn size(&self) -> u8 {
+            pub fn size(&self) -> usize {
                 match self {
                     $(
-                        &Multihash::$name(_) => $size
-                    ),*
+                        &Multihash::$name(_) => $size,
+                    )*
+                    &Multihash::Unknown(_, ref hash) => hash.len(),
                 }
             }
 
             /// Returns the human readable name of the hash algorithm
-            pub fn name(&self) -> &str {
+            pub fn name(&self) -> &'static str {
                 match self {
                     $(
-                        &Multihash::$name(_) => $name_hr
-                    ),*
+                        &Multihash::$name(_) => $name_hr,
+                    )*
+                    &Multihash::Unknown(..) => "Unknown",
                 }
             }
 
-            pub fn code(&self) -> u8 {
+            pub fn code(&self) -> u64 {
                 match self {
                     $(
-                        &Multihash::$name(_) => $code
-                    ),*
+                        &Multihash::$name(_) => $code,
+                    )*
+                    &Multihash::Unknown(code, _) => code,
                 }
             }
 
