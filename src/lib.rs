@@ -42,26 +42,20 @@ macro_rules! impl_multihash {
         }
 
         impl HashAlgo {
+            pub fn config(&self) -> HashConfig {
+                HashConfig::new(*self)
+            }
+
             /// ```rust
             /// use multihash::{Multihash, HashAlgo};
             /// let mh: Multihash = HashAlgo::SHA2256.hash("my hash".as_bytes());
             /// ```
             pub fn hash(&self, input: &[u8]) -> Multihash {
-                match self {
-                    $(
-                        &HashAlgo::$name => {
-                            let mut output: [u8; $size] = [0; $size];
-                            let mut hasher = $hasher;
-                            hasher.input(input);
-                            hasher.result(&mut output);
-                            Multihash::$name(ArrayVec::from(output))
-                        },
-                    )*
-                }
+                self.config().hash(input)
             }
 
             /// Returns the size of the hash data
-            pub fn size(&self) -> usize {
+            pub fn max_size(&self) -> usize {
                 match self {
                     $(
                         &HashAlgo::$name => $size,
@@ -82,6 +76,49 @@ macro_rules! impl_multihash {
                 match self {
                     $(
                         &HashAlgo::$name => $code,
+                    )*
+                }
+            }
+        }
+
+        #[derive(PartialEq, Eq, Clone, Debug)]
+        pub struct HashConfig {
+            algo: HashAlgo,
+            size: usize,
+        }
+
+        impl HashConfig {
+            pub fn new(algo: HashAlgo) -> HashConfig {
+                HashConfig {
+                    algo: algo,
+                    size: algo.max_size(),
+                }
+            }
+
+            pub fn algo(&self) -> HashAlgo {
+                self.algo
+            }
+
+            pub fn size(&self) -> usize {
+                self.size
+            }
+
+            pub fn set_size(&mut self, size: usize) {
+                self.size = size;
+            }
+
+            pub fn hash(&self, input: &[u8]) -> Multihash {
+                match self.algo {
+                    $(
+                        HashAlgo::$name => {
+                            let mut output: [u8; $size] = [0; $size];
+                            let mut hasher = $hasher;
+                            hasher.input(input);
+                            hasher.result(&mut output);
+                            let mut arr = ArrayVec::new();
+                            arr.extend(output[..self.size].iter().cloned());
+                            Multihash::$name(arr)
+                        },
                     )*
                 }
             }
@@ -169,7 +206,7 @@ macro_rules! impl_multihash {
             pub fn size(&self) -> usize {
                 match self {
                     $(
-                        &Multihash::$name(_) => $size,
+                        &Multihash::$name(ref hash) => hash.len(),
                     )*
                     &Multihash::Unknown(_, ref hash) => hash.len(),
                 }
@@ -202,6 +239,14 @@ macro_rules! impl_multihash {
                     )*
                     &Multihash::Unknown(..) => None,
                 }
+            }
+
+            pub fn config(&self) -> Option<HashConfig> {
+                self.algo().map(|a| {
+                    let mut c = a.config();
+                    c.set_size(self.size());
+                    c
+                })
             }
         }
     }
