@@ -10,7 +10,8 @@ version = "0.2.0"
 
 [dependencies]
 arrayvec = "0.3.20"
-rust-crypto = "^0.2"
+ring = "0.7.4"
+tiny-keccak = "1.2.1"
 
 [dependencies.varint]
 git = "https://github.com/chpio/rust-varint.git"

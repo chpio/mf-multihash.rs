@@ -19,21 +19,29 @@ missing_debug_implementations)]
 /// ! in Rust.
 /// Representation of a Multiaddr.
 
-extern crate crypto;
+extern crate ring;
+extern crate tiny_keccak;
 extern crate arrayvec;
 extern crate varint;
 
 use std::io;
 use arrayvec::ArrayVec;
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
-use crypto::sha2::{Sha256, Sha512};
-use crypto::sha3::Sha3;
-use crypto::blake2b::Blake2b;
-use crypto::blake2s::Blake2s;
+use ring::digest;
+use tiny_keccak::Keccak;
+use std::borrow::Borrow;
+
+macro_rules! gen_hashing {
+    (ring, $algo:ident, $input:expr, $output:expr, $len:expr) => {
+        let result = digest::digest(&digest::$algo, $input);
+        $output.copy_from_slice(&result.as_ref()[..$len]);
+    };
+    (tiny, $algo:ident, $input:expr, $output:expr, $len:expr) => {
+        Keccak::$algo($input, $output);
+    };
+}
 
 macro_rules! impl_multihash {
-    ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $len:expr, $hasher:expr;)*) => {
+    ($($name:ident, $name_hr:expr, $name_lc:ident, $code:expr, $len:expr, $hash_lib:ident: $hash_algo:ident;)*) => {
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum HashAlgo {
             $(
@@ -111,13 +119,10 @@ macro_rules! impl_multihash {
                 match self.algo {
                     $(
                         HashAlgo::$name => {
-                            let mut output: [u8; $len] = [0; $len];
-                            let mut hasher = $hasher;
-                            hasher.input(input);
-                            hasher.result(&mut output);
-                            let mut arr = ArrayVec::new();
-                            arr.extend(output[..self.len].into_iter().cloned());
-                            Multihash::$name(arr)
+                            let mut output = ArrayVec::from([0u8; $len]);
+                            let _ = output.drain(self.len..);
+                            gen_hashing!($hash_lib, $hash_algo, input, output.as_mut(), self.len);
+                            Multihash::$name(output)
                         },
                     )*
                 }
@@ -139,11 +144,12 @@ macro_rules! impl_multihash {
                 match self {
                     $(
                         &Multihash::$name(ref hash) => {
+                            let len = hash.len();
                             output.reserve_exact(
-                                varint::size_u($code) + varint::size_u($len) + $len
+                                varint::size_u($code) + varint::size_u(len as u64) + len
                             );
                             varint::write_u($code, output)?;
-                            varint::write_u($len, output)?;
+                            varint::write_u(len as u64, output)?;
                             output.extend_from_slice(hash);
                         },
                     )*
@@ -253,19 +259,19 @@ macro_rules! impl_multihash {
 }
 
 impl_multihash! {
-    SHA1, "SHA1", sha1, 0x11, 20, Sha1::new();
+    SHA1, "SHA1", sha1, 0x11, 20, ring: SHA1;
 
-    SHA2256, "SHA2-256", sha2_256, 0x12, 32, Sha256::new();
-    SHA2512, "SHA2-512", sha2_512, 0x13, 64, Sha512::new();
+    SHA2256, "SHA2-256", sha2_256, 0x12, 32, ring: SHA256;
+    SHA2512, "SHA2-512", sha2_512, 0x13, 64, ring: SHA512;
 
-    SHA3224, "SHA3-224", sha3_224, 0x17, 28, Sha3::sha3_224();
-    SHA3256, "SHA3-256", sha3_256, 0x16, 32, Sha3::sha3_256();
-    SHA3384, "SHA3-384", sha3_384, 0x15, 48, Sha3::sha3_384();
-    SHA3512, "SHA3-512", sha3_512, 0x14, 64, Sha3::sha3_512();
+    SHA3224, "SHA3-224", sha3_224, 0x17, 28, tiny: sha3_224;
+    SHA3256, "SHA3-256", sha3_256, 0x16, 32, tiny: sha3_256;
+    SHA3384, "SHA3-384", sha3_384, 0x15, 48, tiny: sha3_384;
+    SHA3512, "SHA3-512", sha3_512, 0x14, 64, tiny: sha3_512;
 
-    SHAKE128, "SHAKE-128", shake_128, 0x18, 16, Sha3::shake_128();
-    SHAKE256, "SHAKE-256", shake_256, 0x19, 32, Sha3::shake_256();
+    SHAKE128, "SHAKE-128", shake_128, 0x18, 16, tiny: shake128;
+    SHAKE256, "SHAKE-256", shake_256, 0x19, 32, tiny: shake256;
 
-    BLAKE2B, "BLAKE2B", blake2b, 0x40, 64, Blake2b::new(64);
-    BLAKE2S, "BLAKE2S", blake2s, 0x41, 32, Blake2s::new(32);
+    // BLAKE2B, "BLAKE2B", blake2b, 0x40, 64, Blake2b::new(64);
+    // BLAKE2S, "BLAKE2S", blake2s, 0x41, 32, Blake2s::new(32);
 }
