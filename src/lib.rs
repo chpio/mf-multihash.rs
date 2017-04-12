@@ -12,7 +12,19 @@ extern crate varint;
 extern crate error_chain;
 
 mod errors {
-    error_chain! {}
+    error_chain! {
+        errors {
+            InvalidHashLength(algo: Option<::HashAlgo>) {
+                description("Invalid hash length")
+                display(
+                    "Invalid hash length for `{}`",
+                    algo
+                        .map(|a| format!("{:?}", a))
+                        .unwrap_or("Unknown".to_string())
+                )
+            }
+        }
+    }
 }
 
 use arrayvec::ArrayVec;
@@ -173,7 +185,7 @@ macro_rules! impl_multihash {
                     $(
                         $code => {
                             if $len < len || input.len() < len as usize {
-                                return Err("Invalid input length".into());
+                                return Err(ErrorKind::InvalidHashLength(Some(HashAlgo::$name)).into());
                             }
                             let len = len as usize;
                             let mut buf = ArrayVec::new();
@@ -183,7 +195,7 @@ macro_rules! impl_multihash {
                     )*
                     _ => {
                         if 128 < len || input.len() < len as usize  {
-                            return Err("Input length exceeded for unknown algorithm".into());
+                            return Err(ErrorKind::InvalidHashLength(None).into());
                         }
                         let len = len as usize;
                         let mut buf = Vec::with_capacity(len);
