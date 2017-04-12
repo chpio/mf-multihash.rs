@@ -56,6 +56,15 @@ macro_rules! impl_multihash {
         }
 
         impl HashAlgo {
+            pub fn from_name<S: Borrow<str>>(name: S) -> Option<HashAlgo> {
+                match name.borrow() {
+                    $(
+                        $name_hr => Some(HashAlgo::$name),
+                    )*
+                    _ => None,
+                }
+            }
+
             pub fn config(&self) -> HashConfig {
                 HashConfig::new(*self)
             }
