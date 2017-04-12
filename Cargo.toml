@@ -10,6 +10,7 @@ version = "0.2.0"
 
 [dependencies]
 arrayvec = "0.3.20"
+error-chain = "0.10.0"
 ring = "0.7.4"
 tiny-keccak = "1.2.1"
 

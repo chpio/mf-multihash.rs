@@ -23,12 +23,18 @@ extern crate ring;
 extern crate tiny_keccak;
 extern crate arrayvec;
 extern crate varint;
+#[macro_use]
+extern crate error_chain;
 
-use std::io;
+mod errors {
+    error_chain! {}
+}
+
 use arrayvec::ArrayVec;
 use ring::digest;
 use tiny_keccak::Keccak;
 use std::borrow::Borrow;
+use errors::*;
 
 macro_rules! gen_hashing {
     (ring, $algo:ident, $input:expr, $output:expr, $len:expr) => {
@@ -144,7 +150,7 @@ macro_rules! impl_multihash {
 
         impl Multihash {
             /// Converts the Multihash into bytes
-            pub fn to_bytes(&self, output: &mut Vec<u8>) -> io::Result<()> {
+            pub fn to_bytes(&self, output: &mut Vec<u8>) -> Result<()> {
                 match self {
                     $(
                         &Multihash::$name(ref hash) => {
@@ -152,16 +158,20 @@ macro_rules! impl_multihash {
                             output.reserve_exact(
                                 varint::size_u($code) + varint::size_u(len as u64) + len
                             );
-                            varint::write_u($code, output)?;
-                            varint::write_u(len as u64, output)?;
+                            varint::write_u($code, output)
+                                .chain_err(|| "writing multihash code")?;
+                            varint::write_u(len as u64, output)
+                                .chain_err(|| "writing multihash length")?;
                             output.extend_from_slice(hash);
                         },
                     )*
                     &Multihash::Unknown(code, ref hash) => {
                         let len = hash.len();
                         output.reserve_exact(varint::size_u(code) + varint::size_u(len as u64) + len);
-                        varint::write_u(code, output)?;
-                        varint::write_u(len as u64, output)?;
+                        varint::write_u(code, output)
+                            .chain_err(|| "writing multihash code")?;
+                        varint::write_u(len as u64, output)
+                            .chain_err(|| "writing multihash length")?;
                         output.extend_from_slice(hash);
                     },
                 }
@@ -169,17 +179,16 @@ macro_rules! impl_multihash {
             }
 
             /// Converts bytes into a Multihash
-            pub fn from_bytes(input: &[u8]) -> io::Result<(Multihash, &[u8])> {
-                let (code, input) = varint::read_u(input)?;
-                let (len, input) = varint::read_u(input)?;
+            pub fn from_bytes(input: &[u8]) -> Result<(Multihash, &[u8])> {
+                let (code, input) = varint::read_u(input)
+                    .chain_err(|| "reading multihash code")?;
+                let (len, input) = varint::read_u(input)
+                    .chain_err(|| "reading multihash length")?;
                 match code {
                     $(
                         $code => {
                             if $len < len || input.len() < len as usize {
-                                return Err(io::Error::new(
-                                    io::ErrorKind::Other,
-                                    "Invalid input length"
-                                ));
+                                return Err("Invalid input length".into());
                             }
                             let len = len as usize;
                             let mut buf = ArrayVec::new();
@@ -189,10 +198,7 @@ macro_rules! impl_multihash {
                     )*
                     _ => {
                         if 128 < len || input.len() < len as usize  {
-                            return Err(io::Error::new(
-                                io::ErrorKind::Other,
-                                "Input length exceeded for unknown algorithm"
-                            ));
+                            return Err("Input length exceeded for unknown algorithm".into());
                         }
                         let len = len as usize;
                         let mut buf = Vec::with_capacity(len);
