@@ -41,6 +41,9 @@ macro_rules! gen_hashing {
     (tiny, $algo:ident, $input:expr, $output:expr, $len:expr) => {
         Keccak::$algo($input, $output);
     };
+    (u, $algo:ident, $input:expr, $output:expr, $len:expr) => {
+        unimplemented!();
+    };
 }
 
 macro_rules! impl_multihash {
@@ -129,6 +132,7 @@ macro_rules! impl_multihash {
                             let mut output = ArrayVec::from([0u8; $len]);
                             let _ = output.drain(self.len..);
                             gen_hashing!($hash_lib, $hash_algo, input, output.as_mut(), self.len);
+                            #[allow(unreachable_code)]
                             Multihash::$name(output)
                         },
                     )*
@@ -275,6 +279,6 @@ impl_multihash! {
     SHAKE128, "SHAKE-128", shake_128, 0x18, 16, tiny: shake128;
     SHAKE256, "SHAKE-256", shake_256, 0x19, 32, tiny: shake256;
 
-    // BLAKE2B, "BLAKE2B", blake2b, 0x40, 64, Blake2b::new(64);
-    // BLAKE2S, "BLAKE2S", blake2s, 0x41, 32, Blake2s::new(32);
+    BLAKE2B, "BLAKE2B", blake2b, 0x40, 64, u: u;
+    BLAKE2S, "BLAKE2S", blake2s, 0x41, 32, u: u;
 }
