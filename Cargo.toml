@@ -1,5 +1,8 @@
 [package]
-name = "mf-multihash"
+name = "mf_multihash"
 version = "0.0.0"
 
 [dependencies]
+arrayvec = "0.3.22"
+lazy_static = "0.2.8"
+ring = "0.7.5"
