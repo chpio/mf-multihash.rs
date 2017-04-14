@@ -109,7 +109,7 @@ impl Default for Registry {
 
 
 #[derive(Debug, Clone, Copy)]
-pub struct Algo(&'static InnerAlgo);
+pub struct Algo(pub &'static InnerAlgo);
 
 impl Algo {
     pub fn hash(&self, input: &[u8]) -> Multihash {
