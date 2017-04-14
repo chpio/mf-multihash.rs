@@ -1,6 +1,10 @@
 [package]
 name = "mf_multihash"
 version = "0.0.0"
+description = "/multiformat/multihash"
+license = "MIT/Apache-2.0"
+authors = ["chpio"]
+repository = "https://github.com/chpio/mf_multihash"
 
 [dependencies]
 arrayvec = "0.3.22"
