@@ -2,7 +2,7 @@ extern crate mf_multihash;
 extern crate ring;
 
 use mf_multihash::Registry;
-use mf_multihash::hashes::{SHA1, SHA2256, SHA2512};
+use mf_multihash::algos::{SHA1, SHA2256, SHA2512};
 use ring::test;
 
 #[test]

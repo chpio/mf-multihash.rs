@@ -3,7 +3,7 @@
 extern crate arrayvec;
 extern crate ring;
 
-pub mod hashes;
+pub mod algos;
 
 use std::collections::{HashMap, hash_map};
 use std::convert::From;
@@ -92,9 +92,9 @@ impl Registry {
 impl Default for Registry {
     fn default() -> Registry {
         let mut reg = Registry::new();
-        reg.register(0x11, hashes::SHA1);
-        reg.register(0x12, hashes::SHA2256);
-        reg.register(0x13, hashes::SHA2512);
+        reg.register(0x11, algos::SHA1);
+        reg.register(0x12, algos::SHA2256);
+        reg.register(0x13, algos::SHA2512);
         reg
     }
 }
