@@ -10,7 +10,7 @@ macro_rules! gen_hashing {
 
 macro_rules! impl_hashes {
     ($($name:ident, $max_len:expr, $hasher_type:ident, $hasher_algo:ident;)*) => {
-        pub mod algos {
+        mod algos {
             use $crate::Multihash;
             use $crate::inner::InnerAlgo;
             use ring::digest;
@@ -44,7 +44,7 @@ macro_rules! impl_hashes {
             pub static $name: Algo = Algo(&algos::$name as &InnerAlgo);
         )*
 
-        pub mod hashes {
+        mod hashes {
             use $crate::{Algo, Multihash};
             use $crate::inner::InnerMultihash;
             use arrayvec::ArrayVec;
