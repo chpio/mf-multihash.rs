@@ -84,5 +84,6 @@ macro_rules! impl_hashes {
 impl_hashes! {
     SHA1, 20, ring, SHA1;
     SHA2_256, 32, ring, SHA256;
+    SHA2_384, 48, ring, SHA384;
     SHA2_512, 64, ring, SHA512;
 }
