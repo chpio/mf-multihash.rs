@@ -9,3 +9,4 @@ repository = "https://github.com/chpio/mf_multihash"
 [dependencies]
 arrayvec = "0.3.22"
 ring = "0.7.5"
+tiny-keccak = "1.2.1"

@@ -3,7 +3,12 @@ use Algo;
 
 macro_rules! gen_hashing {
     (ring, $algo:ident, $input:expr, $output:ident) => {
-        let result = digest::digest(&digest::$algo, $input);
+        let result = ::ring::digest::digest(&::ring::digest::$algo, $input);
+        let $output = result.as_ref();
+    };
+
+    (tiny, $algo:ident, $input:expr, $output:ident) => {
+        let result = ::tiny_keccak::$algo($input);
         let $output = result.as_ref();
     };
 }
@@ -13,7 +18,6 @@ macro_rules! impl_hashes {
         mod algos {
             use $crate::Multihash;
             use $crate::inner::InnerAlgo;
-            use ring::digest;
             use std::any::TypeId;
 
             $(
@@ -83,7 +87,21 @@ macro_rules! impl_hashes {
 
 impl_hashes! {
     SHA1, 20, ring, SHA1;
+
     SHA2_256, 32, ring, SHA256;
     SHA2_384, 48, ring, SHA384;
     SHA2_512, 64, ring, SHA512;
+
+    SHA3_224, 28, tiny, sha3_224;
+    SHA3_256, 32, tiny, sha3_256;
+    SHA3_384, 48, tiny, sha3_384;
+    SHA3_512, 64, tiny, sha3_512;
+
+    SHAKE_128, 16, tiny, shake128;
+    SHAKE_256, 32, tiny, shake256;
+
+    Keccak_224, 28, tiny, keccak224;
+    Keccak_256, 32, tiny, keccak256;
+    Keccak_384, 48, tiny, keccak384;
+    Keccak_512, 64, tiny, keccak512;
 }

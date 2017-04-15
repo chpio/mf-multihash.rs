@@ -2,6 +2,7 @@
 
 extern crate arrayvec;
 extern crate ring;
+extern crate tiny_keccak;
 
 pub mod algos;
 
@@ -93,8 +94,23 @@ impl Default for Registry {
     fn default() -> Registry {
         let mut reg = Registry::new();
         reg.register(0x11, algos::SHA1);
+
         reg.register(0x12, algos::SHA2_256);
         reg.register(0x13, algos::SHA2_512);
+
+        reg.register(0x17, algos::SHA3_224);
+        reg.register(0x16, algos::SHA3_256);
+        reg.register(0x15, algos::SHA3_384);
+        reg.register(0x14, algos::SHA3_512);
+
+        reg.register(0x18, algos::SHAKE_128);
+        reg.register(0x19, algos::SHAKE_256);
+
+        reg.register(0x1A, algos::Keccak_224);
+        reg.register(0x1B, algos::Keccak_256);
+        reg.register(0x1C, algos::Keccak_384);
+        reg.register(0x1D, algos::Keccak_512);
+
         reg
     }
 }
