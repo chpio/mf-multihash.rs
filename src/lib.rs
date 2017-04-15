@@ -93,8 +93,8 @@ impl Default for Registry {
     fn default() -> Registry {
         let mut reg = Registry::new();
         reg.register(0x11, algos::SHA1);
-        reg.register(0x12, algos::SHA2256);
-        reg.register(0x13, algos::SHA2512);
+        reg.register(0x12, algos::SHA2_256);
+        reg.register(0x13, algos::SHA2_512);
         reg
     }
 }

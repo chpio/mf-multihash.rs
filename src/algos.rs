@@ -17,6 +17,7 @@ macro_rules! impl_hashes {
             use std::any::TypeId;
 
             $(
+                #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 pub struct $name;
                 impl InnerAlgo for $name {
@@ -41,6 +42,7 @@ macro_rules! impl_hashes {
         }
 
         $(
+            #[allow(non_upper_case_globals)]
             pub static $name: Algo = Algo(&algos::$name as &InnerAlgo);
         )*
 
@@ -50,6 +52,7 @@ macro_rules! impl_hashes {
             use arrayvec::ArrayVec;
 
             $(
+                #[allow(non_camel_case_types)]
                 #[derive(Debug, Clone)]
                 pub struct $name(ArrayVec<[u8; $max_len]>);
 
@@ -80,6 +83,6 @@ macro_rules! impl_hashes {
 
 impl_hashes! {
     SHA1, 20, ring, SHA1;
-    SHA2256, 32, ring, SHA256;
-    SHA2512, 64, ring, SHA512;
+    SHA2_256, 32, ring, SHA256;
+    SHA2_512, 64, ring, SHA512;
 }
