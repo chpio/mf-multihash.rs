@@ -47,7 +47,7 @@ macro_rules! impl_hashes {
 
         $(
             #[allow(non_upper_case_globals)]
-            pub static $name: Algo = Algo(&algos::$name as &InnerAlgo);
+            pub const $name: Algo = Algo(&algos::$name as &InnerAlgo);
         )*
 
         mod hashes {
