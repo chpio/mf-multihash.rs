@@ -2,8 +2,6 @@
 
 extern crate arrayvec;
 extern crate ring;
-#[macro_use]
-extern crate lazy_static;
 
 pub mod hashes;
 
@@ -14,26 +12,20 @@ use std::hash::{Hash, Hasher};
 pub mod inner {
     use {Multihash, Algo};
     use std::fmt::Debug;
-    use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
+    use std::any::TypeId;
 
     pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
         fn algo(&self) -> Algo;
     }
 
     pub trait InnerAlgo: Debug + Send + Sync {
-        fn algo_id(&self) -> usize;
+        fn algo_ty(&self) -> TypeId;
         fn hash(&self, input: &[u8]) -> Multihash {
             self.hash_with_len(input, self.max_len())
         }
         fn hash_with_len(&self, input: &[u8], len: usize) -> Multihash;
         fn deserialize(&self, input: &[u8]) -> Multihash;
         fn max_len(&self) -> usize;
-    }
-
-    static NEXT_ALGO_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-
-    pub fn next_algo_id() -> usize {
-        NEXT_ALGO_ID.fetch_add(1, Ordering::SeqCst)
     }
 }
 use inner::*;
@@ -127,13 +119,13 @@ impl Algo {
 
 impl Hash for Algo {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_usize(self.0.algo_id());
+        self.0.algo_ty().hash(state);
     }
 }
 
 impl PartialEq<Algo> for Algo {
     fn eq(&self, other: &Algo) -> bool {
-        self.0.algo_id() == other.0.algo_id()
+        self.0.algo_ty() == other.0.algo_ty()
     }
 }
 
@@ -157,7 +149,7 @@ impl AsRef<[u8]> for Multihash {
 
 impl Hash for Multihash {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_usize(self.algo().0.algo_id());
+        self.algo().0.algo_ty().hash(state);
         state.write(self.as_ref());
     }
 }

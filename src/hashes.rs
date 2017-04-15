@@ -12,18 +12,16 @@ macro_rules! impl_hashes {
     ($($name:ident, $max_len:expr, $hasher_type:ident, $hasher_algo:ident;)*) => {
         pub mod algos {
             use $crate::Multihash;
-            use $crate::inner::{InnerAlgo, next_algo_id};
+            use $crate::inner::InnerAlgo;
             use ring::digest;
+            use std::any::TypeId;
 
             $(
                 #[derive(Debug)]
                 pub struct $name;
                 impl InnerAlgo for $name {
-                    fn algo_id(&self) -> usize {
-                        lazy_static! {
-                            static ref ID: usize = next_algo_id();
-                        }
-                        *ID
+                    fn algo_ty(&self) -> TypeId {
+                        TypeId::of::<Self>()
                     }
 
                     fn hash_with_len(&self, input: &[u8], len: usize) -> Multihash {
