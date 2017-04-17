@@ -1,6 +1,3 @@
-use inner::InnerAlgo;
-use Algo;
-
 macro_rules! gen_hashing {
     (ring, $algo:ident, $input:expr, $output:ident) => {
         let result = ::ring::digest::digest(&::ring::digest::$algo, $input);
@@ -16,29 +13,25 @@ macro_rules! gen_hashing {
 macro_rules! impl_hashes {
     ($($name:ident, $max_len:expr, $hasher_type:ident, $hasher_algo:ident;)*) => {
         mod algos {
-            use $crate::Multihash;
-            use $crate::inner::InnerAlgo;
-            use std::any::TypeId;
+            use $crate::Algo;
 
             $(
                 #[allow(non_camel_case_types)]
-                #[derive(Debug)]
+                #[derive(Debug, Clone, PartialEq, Eq)]
                 pub struct $name;
-                impl InnerAlgo for $name {
-                    fn algo_ty(&self) -> TypeId {
-                        TypeId::of::<Self>()
-                    }
+                impl Algo for $name {
+                    type Hash = super::hashes::$name;
 
-                    fn hash_with_len(&self, input: &[u8], len: usize) -> Multihash {
+                    fn hash(&self, input: &[u8]) -> super::hashes::$name {
                         gen_hashing!($hasher_type, $hasher_algo, input, output);
-                        self.deserialize(&output[..len])
+                        self.deserialize(&output[..])
                     }
 
-                    fn deserialize(&self, input: &[u8]) -> Multihash {
+                    fn deserialize(&self, input: &[u8]) -> super::hashes::$name {
                         super::hashes::$name::new(input)
                     }
 
-                    fn max_len(&self) -> usize {
+                    fn max_len() -> usize {
                         $max_len
                     }
                 }
@@ -47,29 +40,30 @@ macro_rules! impl_hashes {
 
         $(
             #[allow(non_upper_case_globals)]
-            pub const $name: Algo = Algo(&algos::$name as &InnerAlgo);
+            pub const $name: algos::$name = algos::$name;
         )*
 
         mod hashes {
-            use $crate::{Algo, Multihash};
-            use $crate::inner::InnerMultihash;
+            use $crate::Multihash;
             use arrayvec::ArrayVec;
 
             $(
                 #[allow(non_camel_case_types)]
-                #[derive(Debug, Clone)]
+                #[derive(Debug, Clone, PartialEq, Eq)]
                 pub struct $name(ArrayVec<[u8; $max_len]>);
 
                 impl $name {
-                    pub fn new(input: &[u8]) -> Multihash {
+                    pub fn new(input: &[u8]) -> $name {
                         let mut buf = ArrayVec::new();
                         buf.extend(input.into_iter().cloned());
-                        $name(buf).into()
+                        $name(buf)
                     }
                 }
 
-                impl InnerMultihash for $name {
-                    fn algo(&self) -> Algo {
+                impl Multihash for $name {
+                    type Algo = super::algos::$name;
+
+                    fn algo(&self) -> super::algos::$name {
                         super::$name
                     }
                 }
