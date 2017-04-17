@@ -96,7 +96,13 @@ impl Default for Registry {
 }
 
 
-pub trait Algo: 'static + InnerAlgo + Clone + Eq {
+pub trait AdditionalState {
+    fn additional_state(&self) -> &[u8] {
+        &[]
+    }
+}
+
+pub trait Algo: 'static + InnerAlgo + AdditionalState + Clone + Eq {
     type Hash: Multihash;
 
     fn hash(&self, input: &[u8]) -> Self::Hash;
@@ -111,6 +117,7 @@ pub trait InnerAlgo: Debug + Send + Sync {
     fn in_max_len(&self) -> usize;
     fn in_type_id(&self) -> TypeId;
     fn in_clone(&self) -> DynAlgo;
+    fn in_additional_state(&self) -> &[u8];
 }
 
 impl <T: Algo> InnerAlgo for T {
@@ -132,6 +139,10 @@ impl <T: Algo> InnerAlgo for T {
 
     fn in_clone(&self) -> DynAlgo {
         self.clone().into()
+    }
+
+    fn in_additional_state(&self) -> &[u8] {
+        self.additional_state()
     }
 }
 
@@ -157,12 +168,13 @@ impl DynAlgo {
 impl Hash for DynAlgo {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner.in_type_id().hash(state);
+        state.write(self.inner.in_additional_state());
     }
 }
 
 impl PartialEq<DynAlgo> for DynAlgo {
     fn eq(&self, other: &DynAlgo) -> bool {
-        self.inner.in_type_id() == other.inner.in_type_id()
+        self.inner.in_type_id() == other.inner.in_type_id() && self.inner.in_additional_state() == other.inner.in_additional_state()
     }
 }
 
@@ -183,7 +195,7 @@ impl<T: Algo> From<T> for DynAlgo {
 }
 
 
-pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + Clone {
+pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + AdditionalState + Clone {
     type Algo: Algo;
 
     fn algo(&self) -> Self::Algo;
@@ -193,8 +205,8 @@ pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + Clone {
 pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
     fn in_algo(&self) -> DynAlgo;
     fn in_clone(&self) -> DynMultihash;
+    fn in_additional_state(&self) -> &[u8];
 }
-
 
 impl <T: Multihash> InnerMultihash for T {
     fn in_algo(&self) -> DynAlgo {
@@ -204,7 +216,12 @@ impl <T: Multihash> InnerMultihash for T {
     fn in_clone(&self) -> DynMultihash {
         self.clone().into()
     }
+
+    fn in_additional_state(&self) -> &[u8] {
+        self.additional_state()
+    }
 }
+
 
 #[derive(Debug)]
 pub struct DynMultihash {
@@ -227,12 +244,13 @@ impl Hash for DynMultihash {
     fn hash<H: Hasher>(&self, state: &mut H) {
         Hash::hash(&self.algo(), state);
         self.as_ref().hash(state);
+        state.write(self.inner.in_additional_state());
     }
 }
 
 impl PartialEq<DynMultihash> for DynMultihash {
     fn eq(&self, other: &DynMultihash) -> bool {
-        self.inner.in_algo() == other.inner.in_algo() && self.as_ref() == other.as_ref()
+        self.inner.in_algo() == other.inner.in_algo() && self.as_ref() == other.as_ref() && self.inner.in_additional_state() == other.inner.in_additional_state()
     }
 }
 

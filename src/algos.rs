@@ -13,7 +13,7 @@ macro_rules! gen_hashing {
 macro_rules! impl_hashes {
     ($($name:ident, $max_len:expr, $hasher_type:ident, $hasher_algo:ident;)*) => {
         mod algos {
-            use $crate::Algo;
+            use $crate::{Algo, AdditionalState};
 
             $(
                 #[allow(non_camel_case_types)]
@@ -35,6 +35,8 @@ macro_rules! impl_hashes {
                         $max_len
                     }
                 }
+
+                impl AdditionalState for $name {}
             )*
         }
 
@@ -44,7 +46,7 @@ macro_rules! impl_hashes {
         )*
 
         mod hashes {
-            use $crate::Multihash;
+            use $crate::{Multihash, AdditionalState};
             use arrayvec::ArrayVec;
 
             $(
@@ -73,6 +75,8 @@ macro_rules! impl_hashes {
                         self.0.as_ref()
                     }
                 }
+
+                impl AdditionalState for $name {}
             )*
         }
     };
