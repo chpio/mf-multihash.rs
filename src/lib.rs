@@ -9,33 +9,13 @@ pub mod algos;
 use std::collections::{HashMap, hash_map};
 use std::convert::From;
 use std::hash::{Hash, Hasher};
-
-pub mod inner {
-    use {Multihash, Algo};
-    use std::fmt::Debug;
-    use std::any::TypeId;
-
-    pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
-        fn algo(&self) -> Algo;
-    }
-
-    pub trait InnerAlgo: Debug + Send + Sync {
-        fn algo_ty(&self) -> TypeId;
-        fn hash(&self, input: &[u8]) -> Multihash {
-            self.hash_with_len(input, self.max_len())
-        }
-        fn hash_with_len(&self, input: &[u8], len: usize) -> Multihash;
-        fn deserialize(&self, input: &[u8]) -> Multihash;
-        fn max_len(&self) -> usize;
-    }
-}
-use inner::*;
-
+use std::fmt::Debug;
+use std::any::TypeId;
 
 #[derive(Debug, Clone)]
 pub struct Registry {
-    by_code: HashMap<u64, Algo>,
-    by_algo: HashMap<Algo, u64>,
+    by_code: HashMap<u64, DynAlgo>,
+    by_algo: HashMap<DynAlgo, u64>,
 }
 
 impl Registry {
@@ -46,9 +26,9 @@ impl Registry {
         }
     }
 
-    pub fn register(&mut self, code: u64, algo: Algo) {
-        self.by_code.insert(code, algo);
-        self.by_algo.insert(algo, code);
+    pub fn register<A: Algo>(&mut self, code: u64, algo: A) {
+        self.by_code.insert(code, algo.clone().into());
+        self.by_algo.insert(algo.into(), code);
     }
 
     pub fn unregister(&mut self, code: u64) {
@@ -57,23 +37,23 @@ impl Registry {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> hash_map::Iter<'a, u64, Algo> {
+    pub fn iter<'a>(&'a self) -> hash_map::Iter<'a, u64, DynAlgo> {
         self.by_code.iter()
     }
 
-    pub fn iter_mut<'a>(&'a mut self) -> hash_map::IterMut<'a, u64, Algo> {
+    pub fn iter_mut<'a>(&'a mut self) -> hash_map::IterMut<'a, u64, DynAlgo> {
         self.by_code.iter_mut()
     }
 
-    pub fn by_code(&self, code: u64) -> Option<Algo> {
-        self.by_code.get(&code).map(|a| *a)
+    pub fn by_code(&self, code: u64) -> Option<DynAlgo> {
+        self.by_code.get(&code).map(|a| a.clone())
     }
 
-    pub fn by_algo(&self, algo: Algo) -> Option<u64> {
+    pub fn by_algo(&self, algo: DynAlgo) -> Option<u64> {
         self.by_algo.get(&algo).map(|c| *c)
     }
 
-    pub fn serialize(&self, input: &Multihash, output: &mut Vec<u8>) {
+    pub fn serialize(&self, input: &DynMultihash, output: &mut Vec<u8>) {
         let code = self.by_algo(input.algo()).unwrap();
         let slice = input.as_ref();
         output.push(code as u8);
@@ -81,11 +61,11 @@ impl Registry {
         output.extend_from_slice(slice);
     }
 
-    pub fn deserialize<'a>(&self, input: &'a [u8]) -> (Multihash, &'a [u8]) {
+    pub fn deserialize<'a>(&self, input: &'a [u8]) -> (DynMultihash, &'a [u8]) {
         let code = input[0] as u64;
         let len = input[1] as usize;
         let algo = self.by_code(code).unwrap();
-        let mh = algo.0.deserialize(&input[2..len]);
+        let mh = algo.inner.in_deserialize(&input[2..len]);
         (mh, &input[..len + 2])
     }
 }
@@ -116,76 +96,158 @@ impl Default for Registry {
 }
 
 
-#[derive(Debug, Clone, Copy)]
-pub struct Algo(pub &'static InnerAlgo);
+pub trait Algo: 'static + InnerAlgo + Clone + Eq {
+    type Hash: Multihash;
 
-impl Algo {
-    pub fn hash(&self, input: &[u8]) -> Multihash {
-        self.0.hash(input)
+    fn hash(&self, input: &[u8]) -> Self::Hash;
+    fn deserialize(&self, input: &[u8]) -> Self::Hash;
+    fn max_len() -> usize;
+}
+
+#[doc(hidden)]
+pub trait InnerAlgo: Debug + Send + Sync {
+    fn in_hash(&self, input: &[u8]) -> DynMultihash;
+    fn in_deserialize(&self, input: &[u8]) -> DynMultihash;
+    fn in_max_len(&self) -> usize;
+    fn in_type_id(&self) -> TypeId;
+    fn in_clone(&self) -> DynAlgo;
+}
+
+impl <T: Algo> InnerAlgo for T {
+    fn in_hash(&self, input: &[u8]) -> DynMultihash {
+        self.hash(input).into()
     }
 
-    pub fn hash_with_len(&self, input: &[u8], len: usize) -> Multihash {
-        self.0.hash_with_len(input, len)
+    fn in_deserialize(&self, input: &[u8]) -> DynMultihash {
+        self.deserialize(input).into()
+    }
+
+    fn in_max_len(&self) -> usize {
+        T::max_len()
+    }
+
+    fn in_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
+    }
+
+    fn in_clone(&self) -> DynAlgo {
+        self.clone().into()
+    }
+}
+
+#[derive(Debug)]
+pub struct DynAlgo {
+    inner: Box<InnerAlgo>,
+}
+
+impl DynAlgo {
+    pub fn hash(&self, input: &[u8]) -> DynMultihash {
+        self.inner.in_hash(input)
+    }
+
+    pub fn deserialize(&self, input: &[u8]) -> DynMultihash {
+        self.inner.in_deserialize(input)
     }
 
     pub fn max_len(&self) -> usize {
-        self.0.max_len()
+        self.inner.in_max_len()
     }
 }
 
-impl Hash for Algo {
+impl Hash for DynAlgo {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.algo_ty().hash(state);
+        self.inner.in_type_id().hash(state);
     }
 }
 
-impl PartialEq<Algo> for Algo {
-    fn eq(&self, other: &Algo) -> bool {
-        self.0.algo_ty() == other.0.algo_ty()
+impl PartialEq<DynAlgo> for DynAlgo {
+    fn eq(&self, other: &DynAlgo) -> bool {
+        self.inner.in_type_id() == other.inner.in_type_id()
     }
 }
 
-impl Eq for Algo {}
+impl Eq for DynAlgo {}
 
+impl Clone for DynAlgo {
+    fn clone(&self) -> DynAlgo {
+        self.inner.in_clone()
+    }
+}
+
+impl<T: Algo> From<T> for DynAlgo {
+    fn from(algo: T) -> DynAlgo {
+        DynAlgo {
+            inner: Box::new(algo) as Box<InnerAlgo>,
+        }
+    }
+}
+
+
+pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + Clone {
+    type Algo: Algo;
+
+    fn algo(&self) -> Self::Algo;
+}
+
+#[doc(hidden)]
+pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
+    fn in_algo(&self) -> DynAlgo;
+    fn in_clone(&self) -> DynMultihash;
+}
+
+
+impl <T: Multihash> InnerMultihash for T {
+    fn in_algo(&self) -> DynAlgo {
+        self.algo().into()
+    }
+
+    fn in_clone(&self) -> DynMultihash {
+        self.clone().into()
+    }
+}
 
 #[derive(Debug)]
-pub struct Multihash(Box<InnerMultihash>);
+pub struct DynMultihash {
+    inner: Box<InnerMultihash>,
+}
 
-impl Multihash {
-    pub fn algo(&self) -> Algo {
-        self.0.algo()
+impl DynMultihash {
+    pub fn algo(&self) -> DynAlgo {
+        self.inner.in_algo()
     }
 }
 
-impl AsRef<[u8]> for Multihash {
+impl AsRef<[u8]> for DynMultihash {
     fn as_ref(&self) -> &[u8] {
-        (*self.0).as_ref()
+        (*self.inner).as_ref()
     }
 }
 
-impl Hash for Multihash {
+impl Hash for DynMultihash {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.algo().0.algo_ty().hash(state);
-        state.write(self.as_ref());
+        Hash::hash(&self.algo(), state);
+        self.as_ref().hash(state);
     }
 }
 
-impl PartialEq<Multihash> for Multihash {
-    fn eq(&self, other: &Multihash) -> bool {
-        self.algo() == other.algo() && self.as_ref() == other.as_ref()
+impl PartialEq<DynMultihash> for DynMultihash {
+    fn eq(&self, other: &DynMultihash) -> bool {
+        self.inner.in_algo() == other.inner.in_algo() && self.as_ref() == other.as_ref()
     }
 }
 
-impl Eq for Multihash {}
+impl Eq for DynMultihash {}
 
-impl Clone for Multihash {
-    fn clone(&self) -> Multihash {
-        self.algo().0.deserialize(self.as_ref())
+impl Clone for DynMultihash {
+    fn clone(&self) -> DynMultihash {
+        self.inner.in_clone()
     }
 }
 
-impl<H: InnerMultihash + 'static> From<H> for Multihash {
-    fn from(hash: H) -> Multihash {
-        Multihash(Box::new(hash) as Box<InnerMultihash>)
+impl<T: Multihash> From<T> for DynMultihash {
+    fn from(mh: T) -> DynMultihash {
+        DynMultihash {
+            inner: Box::new(mh) as Box<InnerMultihash>,
+        }
     }
 }
