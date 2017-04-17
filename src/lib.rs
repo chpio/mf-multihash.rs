@@ -11,6 +11,7 @@ use std::convert::From;
 use std::hash::{Hash, Hasher};
 use std::fmt::Debug;
 use std::any::TypeId;
+use std::borrow::Borrow;
 
 #[derive(Debug, Clone)]
 pub struct Registry {
@@ -49,7 +50,7 @@ impl Registry {
         self.by_code.get(&code).map(|a| a.clone())
     }
 
-    pub fn by_algo(&self, algo: DynAlgo) -> Option<u64> {
+    pub fn by_algo<'a>(&self, algo: RefDynAlgo<'a>) -> Option<u64> {
         self.by_algo.get(&algo).map(|c| *c)
     }
 
@@ -194,22 +195,73 @@ impl<T: Algo> From<T> for DynAlgo {
     }
 }
 
+impl <'a> Borrow<RefDynAlgo<'a>> for DynAlgo {
+    fn borrow(&'a self) -> &'a RefDynAlgo<'a> {
+        RefDynAlgo {
+            inner: self.inner.borrow(),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy)]
+pub struct RefDynAlgo<'a> {
+    inner: &'a InnerAlgo,
+}
+
+impl <'a> RefDynAlgo<'a> {
+    pub fn hash(&self, input: &[u8]) -> DynMultihash {
+        self.inner.in_hash(input)
+    }
+
+    pub fn deserialize(&self, input: &[u8]) -> DynMultihash {
+        self.inner.in_deserialize(input)
+    }
+
+    pub fn max_len(&self) -> usize {
+        self.inner.in_max_len()
+    }
+}
+
+impl <'a> Hash for RefDynAlgo<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.in_type_id().hash(state);
+        state.write(self.inner.in_additional_state());
+    }
+}
+
+impl <'a> PartialEq<RefDynAlgo<'a>> for RefDynAlgo<'a> {
+    fn eq(&self, other: &RefDynAlgo) -> bool {
+        self.inner.in_type_id() == other.inner.in_type_id() && self.inner.in_additional_state() == other.inner.in_additional_state()
+    }
+}
+
+impl <'a> Eq for RefDynAlgo<'a> {}
+
+impl<'a, T: Algo> From<&'a T> for RefDynAlgo<'a> {
+    fn from(algo: &'a T) -> RefDynAlgo<'a> {
+        RefDynAlgo {
+            inner: algo as &InnerAlgo,
+        }
+    }
+}
+
 
 pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + AdditionalState + Clone {
     type Algo: Algo;
 
-    fn algo(&self) -> Self::Algo;
+    fn algo(&self) -> &Self::Algo;
 }
 
 #[doc(hidden)]
 pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
-    fn in_algo(&self) -> DynAlgo;
+    fn in_algo<'a>(&'a self) -> RefDynAlgo<'a>;
     fn in_clone(&self) -> DynMultihash;
     fn in_additional_state(&self) -> &[u8];
 }
 
 impl <T: Multihash> InnerMultihash for T {
-    fn in_algo(&self) -> DynAlgo {
+    fn in_algo<'a>(&'a self) -> RefDynAlgo<'a> {
         self.algo().into()
     }
 
@@ -229,7 +281,7 @@ pub struct DynMultihash {
 }
 
 impl DynMultihash {
-    pub fn algo(&self) -> DynAlgo {
+    pub fn algo<'a>(&'a self) -> RefDynAlgo<'a> {
         self.inner.in_algo()
     }
 }

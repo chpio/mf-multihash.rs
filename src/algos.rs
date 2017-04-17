@@ -65,8 +65,8 @@ macro_rules! impl_hashes {
                 impl Multihash for $name {
                     type Algo = super::algos::$name;
 
-                    fn algo(&self) -> super::algos::$name {
-                        super::$name
+                    fn algo(&self) -> &super::algos::$name {
+                        &super::$name
                     }
                 }
 
