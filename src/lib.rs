@@ -28,9 +28,9 @@ impl Registry {
         }
     }
 
-    pub fn register<A: Algo>(&mut self, code: u64, algo: A) {
-        self.by_code.insert(code, algo.clone().into());
-        self.by_algo.insert(algo.into(), code);
+    pub fn register(&mut self, code: u64, algo: DynAlgo) {
+        self.by_code.insert(code, algo.clone());
+        self.by_algo.insert(algo, code);
     }
 
     pub fn unregister(&mut self, code: u64) {
@@ -75,23 +75,23 @@ impl Registry {
 impl Default for Registry {
     fn default() -> Registry {
         let mut reg = Registry::new();
-        reg.register(0x11, algos::SHA1);
+        reg.register(0x11, algos::SHA1.into());
 
-        reg.register(0x12, algos::SHA2_256);
-        reg.register(0x13, algos::SHA2_512);
+        reg.register(0x12, algos::SHA2_256.into());
+        reg.register(0x13, algos::SHA2_512.into());
 
-        reg.register(0x17, algos::SHA3_224);
-        reg.register(0x16, algos::SHA3_256);
-        reg.register(0x15, algos::SHA3_384);
-        reg.register(0x14, algos::SHA3_512);
+        reg.register(0x17, algos::SHA3_224.into());
+        reg.register(0x16, algos::SHA3_256.into());
+        reg.register(0x15, algos::SHA3_384.into());
+        reg.register(0x14, algos::SHA3_512.into());
 
-        reg.register(0x18, algos::SHAKE_128);
-        reg.register(0x19, algos::SHAKE_256);
+        reg.register(0x18, algos::SHAKE_128.into());
+        reg.register(0x19, algos::SHAKE_256.into());
 
-        reg.register(0x1A, algos::Keccak_224);
-        reg.register(0x1B, algos::Keccak_256);
-        reg.register(0x1C, algos::Keccak_384);
-        reg.register(0x1D, algos::Keccak_512);
+        reg.register(0x1A, algos::Keccak_224.into());
+        reg.register(0x1B, algos::Keccak_256.into());
+        reg.register(0x1C, algos::Keccak_384.into());
+        reg.register(0x1D, algos::Keccak_512.into());
 
         reg
     }
