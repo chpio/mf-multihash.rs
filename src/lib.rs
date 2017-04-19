@@ -29,8 +29,14 @@ impl Registry {
     }
 
     pub fn register(&mut self, code: u64, algo: DynAlgo) {
-        self.by_code.insert(code, algo.clone());
-        self.by_algo.insert(algo, code);
+        use hash_map::Entry::Vacant;
+        match (self.by_code.entry(code), self.by_algo.entry(algo.clone())) {
+            (Vacant(entry_code), Vacant(entry_algo)) => {
+                entry_code.insert(algo);
+                entry_algo.insert(code);
+            }
+            _ => panic!("code `{:?}`/algo `{:?}` already registered", code, algo),
+        }
     }
 
     pub fn unregister(&mut self, code: u64) {
