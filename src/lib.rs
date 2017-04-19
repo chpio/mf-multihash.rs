@@ -117,7 +117,7 @@ pub trait InnerAlgo: Debug + Send + Sync {
     fn in_additional_state(&self) -> &[u8];
 }
 
-impl <T: Algo> InnerAlgo for T {
+impl<T: Algo> InnerAlgo for T {
     fn in_hash(&self, input: &[u8]) -> DynMultihash {
         self.hash(input).into()
     }
@@ -171,7 +171,8 @@ impl Hash for DynAlgo {
 
 impl PartialEq<DynAlgo> for DynAlgo {
     fn eq(&self, other: &DynAlgo) -> bool {
-        self.inner.in_type_id() == other.inner.in_type_id() && self.inner.in_additional_state() == other.inner.in_additional_state()
+        self.inner.in_type_id() == other.inner.in_type_id() &&
+        self.inner.in_additional_state() == other.inner.in_additional_state()
     }
 }
 
@@ -185,9 +186,7 @@ impl Clone for DynAlgo {
 
 impl<T: Algo> From<T> for DynAlgo {
     fn from(algo: T) -> DynAlgo {
-        DynAlgo {
-            inner: Box::new(algo) as Box<InnerAlgo>,
-        }
+        DynAlgo { inner: Box::new(algo) as Box<InnerAlgo> }
     }
 }
 
@@ -209,7 +208,7 @@ pub trait InnerMultihash: AsRef<[u8]> + Debug + Send + Sync {
     fn in_additional_state(&self) -> &[u8];
 }
 
-impl <T: Multihash> InnerMultihash for T {
+impl<T: Multihash> InnerMultihash for T {
     fn in_algo(&self) -> DynAlgo {
         self.algo().into()
     }
@@ -251,7 +250,8 @@ impl Hash for DynMultihash {
 
 impl PartialEq<DynMultihash> for DynMultihash {
     fn eq(&self, other: &DynMultihash) -> bool {
-        self.inner.in_algo() == other.inner.in_algo() && self.as_ref() == other.as_ref() && self.inner.in_additional_state() == other.inner.in_additional_state()
+        self.inner.in_algo() == other.inner.in_algo() && self.as_ref() == other.as_ref() &&
+        self.inner.in_additional_state() == other.inner.in_additional_state()
     }
 }
 
@@ -265,8 +265,6 @@ impl Clone for DynMultihash {
 
 impl<T: Multihash> From<T> for DynMultihash {
     fn from(mh: T) -> DynMultihash {
-        DynMultihash {
-            inner: Box::new(mh) as Box<InnerMultihash>,
-        }
+        DynMultihash { inner: Box::new(mh) as Box<InnerMultihash> }
     }
 }
