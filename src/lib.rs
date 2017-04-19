@@ -3,26 +3,28 @@
 extern crate arrayvec;
 extern crate ring;
 extern crate tiny_keccak;
+extern crate fnv;
 
 pub mod algos;
 
-use std::collections::{HashMap, hash_map};
+use std::collections::hash_map;
 use std::convert::From;
 use std::hash::{Hash, Hasher};
 use std::fmt::Debug;
 use std::any::TypeId;
+use fnv::FnvHashMap;
 
 #[derive(Debug, Clone)]
 pub struct Registry {
-    by_code: HashMap<u64, DynAlgo>,
-    by_algo: HashMap<DynAlgo, u64>,
+    by_code: FnvHashMap<u64, DynAlgo>,
+    by_algo: FnvHashMap<DynAlgo, u64>,
 }
 
 impl Registry {
     pub fn new() -> Registry {
         Registry {
-            by_code: HashMap::new(),
-            by_algo: HashMap::new(),
+            by_code: FnvHashMap::default(),
+            by_algo: FnvHashMap::default(),
         }
     }
 
