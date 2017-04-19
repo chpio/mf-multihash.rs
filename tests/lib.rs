@@ -8,7 +8,7 @@ use ring::test;
 #[test]
 fn registry_by_code() {
     let reg = Registry::default();
-    assert_eq!(Some(SHA1.into()), reg.by_code(0x11));
+    assert_eq!(Some(&SHA1.into()), reg.by_code(0x11));
 }
 
 #[test]

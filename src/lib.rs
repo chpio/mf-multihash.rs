@@ -45,8 +45,8 @@ impl Registry {
         self.by_code.iter_mut()
     }
 
-    pub fn by_code(&self, code: u64) -> Option<DynAlgo> {
-        self.by_code.get(&code).map(|a| a.clone())
+    pub fn by_code(&self, code: u64) -> Option<&DynAlgo> {
+        self.by_code.get(&code)
     }
 
     pub fn by_algo(&self, algo: DynAlgo) -> Option<u64> {
