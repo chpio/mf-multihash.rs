@@ -95,10 +95,65 @@ impl Default for Registry {
     }
 }
 
+pub trait Digest: 'static + InnerDigest + Clone {
+    type Algo: Algo;
+
+    fn algo(&self) -> Self::Algo;
+    fn update(&mut self, input: &[u8]);
+    fn finish(self) -> <Self::Algo as Algo>::Hash;
+}
+
+#[doc(hidden)]
+pub trait InnerDigest: Send + Sync {
+    fn in_algo(&self) -> DynAlgo;
+    fn in_update(&mut self, input: &[u8]);
+    fn in_finish(self: Box<Self>) -> DynMultihash;
+}
+
+impl<T: Digest> InnerDigest for T {
+    fn in_algo(&self) -> DynAlgo {
+        self.algo().into()
+    }
+
+    fn in_update(&mut self, input: &[u8]) {
+        self.update(input);
+    }
+
+    fn in_finish(self: Box<Self>) -> DynMultihash {
+        self.finish().into()
+    }
+}
+
+pub struct DynDigest {
+    inner: Box<InnerDigest>,
+}
+
+impl DynDigest {
+    pub fn algo(&self) -> DynAlgo {
+        self.inner.in_algo()
+    }
+
+    pub fn update(&mut self, input: &[u8]) {
+        self.inner.in_update(input)
+    }
+
+    pub fn finish(self) -> DynMultihash {
+        self.inner.in_finish()
+    }
+}
+
+impl<T: Digest> From<T> for DynDigest {
+    fn from(digest: T) -> DynDigest {
+        DynDigest { inner: Box::new(digest) as Box<InnerDigest> }
+    }
+}
+
+
 pub trait Algo: 'static + InnerAlgo + Clone + Eq {
     type Hash: Multihash;
+    type Digest: Digest;
 
-    fn hash(&self, input: &[u8]) -> Self::Hash;
+    fn digest(&self) -> Self::Digest;
     fn deserialize(&self, input: &[u8]) -> Self::Hash;
     fn max_len() -> usize;
 
@@ -109,7 +164,7 @@ pub trait Algo: 'static + InnerAlgo + Clone + Eq {
 
 #[doc(hidden)]
 pub trait InnerAlgo: Debug + Send + Sync {
-    fn in_hash(&self, input: &[u8]) -> DynMultihash;
+    fn in_digest(&self) -> DynDigest;
     fn in_deserialize(&self, input: &[u8]) -> DynMultihash;
     fn in_max_len(&self) -> usize;
     fn in_type_id(&self) -> TypeId;
@@ -118,8 +173,8 @@ pub trait InnerAlgo: Debug + Send + Sync {
 }
 
 impl<T: Algo> InnerAlgo for T {
-    fn in_hash(&self, input: &[u8]) -> DynMultihash {
-        self.hash(input).into()
+    fn in_digest(&self) -> DynDigest {
+        self.digest().into()
     }
 
     fn in_deserialize(&self, input: &[u8]) -> DynMultihash {
@@ -149,8 +204,8 @@ pub struct DynAlgo {
 }
 
 impl DynAlgo {
-    pub fn hash(&self, input: &[u8]) -> DynMultihash {
-        self.inner.in_hash(input)
+    pub fn digest(&self) -> DynDigest {
+        self.inner.in_digest()
     }
 
     pub fn deserialize(&self, input: &[u8]) -> DynMultihash {

@@ -25,7 +25,9 @@ fn hashing() {
             _ => unreachable!(),
         };
         let mh = if len == 0 {
-            algo.hash(input.as_ref())
+            let mut digest = algo.digest();
+            digest.update(input.as_ref());
+            digest.finish()
         } else {
             return Ok(());
         };
