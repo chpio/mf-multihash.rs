@@ -157,7 +157,7 @@ impl<T: Digest> From<T> for DynDigest {
 }
 
 
-pub trait Algo: 'static + InnerAlgo + Clone + Eq {
+pub trait Algo: 'static + InnerAlgo + Into<DynAlgo> + Clone + Eq {
     type Hash: Multihash;
     type Digest: Digest;
 
@@ -254,7 +254,7 @@ impl<T: Algo> From<T> for DynAlgo {
 }
 
 
-pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + Clone {
+pub trait Multihash: 'static + AsRef<[u8]> + InnerMultihash + Into<DynMultihash> + Clone {
     type Algo: Algo;
 
     fn algo(&self) -> Self::Algo;
