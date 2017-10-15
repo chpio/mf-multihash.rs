@@ -57,12 +57,12 @@ impl Registry {
         self.by_code.get(&code)
     }
 
-    pub fn by_algo(&self, algo: DynAlgo) -> Option<u64> {
-        self.by_algo.get(&algo).map(|c| *c)
+    pub fn by_algo(&self, algo: &DynAlgo) -> Option<u64> {
+        self.by_algo.get(algo).map(|c| *c)
     }
 
     pub fn serialize(&self, input: &DynMultihash, output: &mut Vec<u8>) {
-        let code = self.by_algo(input.algo()).unwrap();
+        let code = self.by_algo(&input.algo()).unwrap();
         let slice = input.as_ref();
         output.push(code as u8);
         output.push(slice.len() as u8);
