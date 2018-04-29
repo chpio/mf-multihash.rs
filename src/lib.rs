@@ -1,12 +1,6 @@
-/// ! # multihash
-/// !
-/// ! Implementation of [multihash](https://github.com/jbenet/multihash)
-/// ! in Rust.
-/// Representation of a Multiaddr.
-
+extern crate arrayvec;
 extern crate ring;
 extern crate tiny_keccak;
-extern crate arrayvec;
 extern crate varint;
 #[macro_use]
 extern crate error_chain;
@@ -28,10 +22,10 @@ mod errors {
 }
 
 use arrayvec::ArrayVec;
-use ring::digest;
-use tiny_keccak::Keccak;
-use std::borrow::Borrow;
 use errors::*;
+use ring::digest;
+use std::borrow::Borrow;
+use tiny_keccak::Keccak;
 
 macro_rules! gen_hashing {
     (ring, $algo:ident, $input:expr, $output:expr, $len:expr) => {
