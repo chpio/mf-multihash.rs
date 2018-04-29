@@ -141,7 +141,7 @@ macro_rules! impl_multihash {
                             let _ = output.drain(self.len..);
                             gen_hashing!($hash_lib, $hash_algo, input, output.as_mut(), self.len);
                             #[allow(unreachable_code)]
-                            Multihash::$name(output)
+                            Multihash(MultihashInner::$name(output))
                         },
                     )*
                     HashAlgo::__Nonexhaustive => unreachable!(),
@@ -149,23 +149,24 @@ macro_rules! impl_multihash {
             }
         }
 
-        /// Represents a valid multihash, by associating the hash algorithm with the data
         #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-        pub enum Multihash {
+        enum MultihashInner {
             $(
                 $name(ArrayVec<[u8; $len]>),
             )*
             Unknown(u64, Vec<u8>),
-            #[doc(hidden)]
-            __Nonexhaustive,
         }
+
+        /// Represents a valid multihash, by associating the hash algorithm with the data
+        #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+        pub struct Multihash (MultihashInner);
 
         impl Multihash {
             /// Converts the Multihash into bytes
             pub fn to_bytes(&self, output: &mut Vec<u8>) -> Result<()> {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(ref hash) => {
+                        MultihashInner::$name(ref hash) => {
                             let len = hash.len();
                             output.reserve_exact(
                                 varint::size_u($code) + varint::size_u(len as u64) + len
@@ -177,7 +178,7 @@ macro_rules! impl_multihash {
                             output.extend_from_slice(hash);
                         },
                     )*
-                    &Multihash::Unknown(code, ref hash) => {
+                    MultihashInner::Unknown(code, ref hash) => {
                         let len = hash.len();
                         output.reserve_exact(varint::size_u(code) + varint::size_u(len as u64) + len);
                         varint::write_u(code, output)
@@ -186,7 +187,6 @@ macro_rules! impl_multihash {
                             .chain_err(|| "writing multihash length")?;
                         output.extend_from_slice(hash);
                     },
-                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
                 Ok(())
             }
@@ -206,7 +206,7 @@ macro_rules! impl_multihash {
                             let len = len as usize;
                             let mut buf = ArrayVec::new();
                             buf.extend(input[..len].into_iter().cloned());
-                            Ok((Multihash::$name(ArrayVec::from(buf)), &input[len..]))
+                            Ok((Multihash(MultihashInner::$name(ArrayVec::from(buf))), &input[len..]))
                         },
                     )*
                     _ => {
@@ -216,62 +216,57 @@ macro_rules! impl_multihash {
                         let len = len as usize;
                         let mut buf = Vec::with_capacity(len);
                         buf.extend(input[..len].into_iter().cloned());
-                        Ok((Multihash::Unknown(code, buf), &input[len..]))
+                        Ok((Multihash(MultihashInner::Unknown(code, buf)), &input[len..]))
                     },
                 }
             }
 
             /// Returns a slice containing the hash data
             pub fn hash(&self) -> &[u8] {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(ref hash) => hash,
+                        MultihashInner::$name(ref hash) => hash,
                     )*
-                    &Multihash::Unknown(_, ref hash) => hash,
-                    &Multihash::__Nonexhaustive => unreachable!(),
+                    MultihashInner::Unknown(_, ref hash) => hash,
                 }
             }
 
             /// Returns the len of the hash data
             pub fn len(&self) -> usize {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(ref hash) => hash.len(),
+                        MultihashInner::$name(ref hash) => hash.len(),
                     )*
-                    &Multihash::Unknown(_, ref hash) => hash.len(),
-                    &Multihash::__Nonexhaustive => unreachable!(),
+                    MultihashInner::Unknown(_, ref hash) => hash.len(),
                 }
             }
 
             /// Returns the human readable name of the hash algorithm
             pub fn name(&self) -> &'static str {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(_) => $name_hr,
+                        MultihashInner::$name(_) => $name_hr,
                     )*
-                    &Multihash::Unknown(..) => "Unknown",
-                    &Multihash::__Nonexhaustive => unreachable!(),
+                    MultihashInner::Unknown(..) => "Unknown",
                 }
             }
 
             pub fn code(&self) -> u64 {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(_) => $code,
+                        MultihashInner::$name(_) => $code,
                     )*
-                    &Multihash::Unknown(code, _) => code,
-                    &Multihash::__Nonexhaustive => unreachable!(),
+                    MultihashInner::Unknown(code, _) => code,
                 }
             }
 
 
             pub fn algo(&self) -> Option<HashAlgo> {
-                match self {
+                match self.0 {
                     $(
-                        &Multihash::$name(_) => Some(HashAlgo::$name),
+                        MultihashInner::$name(_) => Some(HashAlgo::$name),
                     )*
-                    &Multihash::Unknown(..) => None,
-                    &Multihash::__Nonexhaustive => unreachable!(),
+                    MultihashInner::Unknown(..) => None,
                 }
             }
 
