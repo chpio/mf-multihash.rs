@@ -53,6 +53,8 @@ macro_rules! impl_multihash {
             $(
                 $name,
             )*
+            #[doc(hidden)]
+            __Nonexhaustive,
         }
 
         impl HashAlgo {
@@ -83,6 +85,7 @@ macro_rules! impl_multihash {
                     $(
                         &HashAlgo::$name => $len,
                     )*
+                    &HashAlgo::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -92,6 +95,7 @@ macro_rules! impl_multihash {
                     $(
                         &HashAlgo::$name => $name_hr,
                     )*
+                    &HashAlgo::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -100,6 +104,7 @@ macro_rules! impl_multihash {
                     $(
                         &HashAlgo::$name => $code,
                     )*
+                    &HashAlgo::__Nonexhaustive => unreachable!(),
                 }
             }
         }
@@ -145,6 +150,7 @@ macro_rules! impl_multihash {
                             Multihash::$name(output)
                         },
                     )*
+                    HashAlgo::__Nonexhaustive => unreachable!(),
                 }
             }
         }
@@ -156,6 +162,8 @@ macro_rules! impl_multihash {
                 $name(ArrayVec<[u8; $len]>),
             )*
             Unknown(u64, Vec<u8>),
+            #[doc(hidden)]
+            __Nonexhaustive,
         }
 
         impl Multihash {
@@ -184,6 +192,7 @@ macro_rules! impl_multihash {
                             .chain_err(|| "writing multihash length")?;
                         output.extend_from_slice(hash);
                     },
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
                 Ok(())
             }
@@ -225,6 +234,7 @@ macro_rules! impl_multihash {
                         &Multihash::$name(ref hash) => hash,
                     )*
                     &Multihash::Unknown(_, ref hash) => hash,
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -235,6 +245,7 @@ macro_rules! impl_multihash {
                         &Multihash::$name(ref hash) => hash.len(),
                     )*
                     &Multihash::Unknown(_, ref hash) => hash.len(),
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -245,6 +256,7 @@ macro_rules! impl_multihash {
                         &Multihash::$name(_) => $name_hr,
                     )*
                     &Multihash::Unknown(..) => "Unknown",
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -254,6 +266,7 @@ macro_rules! impl_multihash {
                         &Multihash::$name(_) => $code,
                     )*
                     &Multihash::Unknown(code, _) => code,
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -264,6 +277,7 @@ macro_rules! impl_multihash {
                         &Multihash::$name(_) => Some(HashAlgo::$name),
                     )*
                     &Multihash::Unknown(..) => None,
+                    &Multihash::__Nonexhaustive => unreachable!(),
                 }
             }
 
