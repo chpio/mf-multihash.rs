@@ -1,32 +1,36 @@
 extern crate arrayvec;
+extern crate integer_encoding;
 extern crate ring;
 extern crate tiny_keccak;
-#[macro_use]
-extern crate error_chain;
-extern crate integer_encoding;
 
-mod errors {
-    error_chain! {
-        errors {
-            InvalidHashLength(algo: Option<::HashAlgo>) {
-                description("Invalid hash length")
-                display(
-                    "Invalid hash length for `{}`",
-                    algo
-                        .map(|a| format!("{:?}", a))
-                        .unwrap_or("Unknown".to_string())
-                )
-            }
+use arrayvec::ArrayVec;
+use integer_encoding::VarInt;
+use ring::digest;
+use std::borrow::Borrow;
+use std::{error, fmt};
+use tiny_keccak::Keccak;
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidHashLength,
+    #[doc(hidden)]
+    __Nonexhaustive,
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match self {
+            &Error::InvalidHashLength => "InvalidHashLength",
+            &Error::__Nonexhaustive => unreachable!(),
         }
     }
 }
 
-use arrayvec::ArrayVec;
-use errors::*;
-use integer_encoding::VarInt;
-use ring::digest;
-use std::borrow::Borrow;
-use tiny_keccak::Keccak;
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
+    }
+}
 
 macro_rules! gen_hashing {
     (ring, $algo:ident, $input:expr, $output:expr, $len:expr) => {
@@ -189,7 +193,7 @@ macro_rules! impl_multihash {
             }
 
             /// Converts bytes into a Multihash
-            pub fn from_bytes(input: &[u8]) -> Result<(Multihash, &[u8])> {
+            pub fn from_bytes(input: &[u8]) -> Result<(Multihash, &[u8]), Error> {
                 let (code, len_vcode) = u64::decode_var(input);
                 let (len, len_vlen) = usize::decode_var(&input[len_vcode..]);
                 let len_v = len_vlen + len_vcode;
@@ -198,7 +202,7 @@ macro_rules! impl_multihash {
                     $(
                         $code => {
                             if $len < len || input.len() < len {
-                                return Err(ErrorKind::InvalidHashLength(Some(HashAlgo::$name)).into());
+                                return Err(Error::InvalidHashLength);
                             }
                             let len = len as usize;
                             let mut buf = ArrayVec::new();
@@ -208,7 +212,7 @@ macro_rules! impl_multihash {
                     )*
                     _ => {
                         if 128 < len || input.len() < len  {
-                            return Err(ErrorKind::InvalidHashLength(None).into());
+                            return Err(Error::InvalidHashLength);
                         }
                         let mut buf = Vec::with_capacity(len);
                         buf.extend(input[..len].into_iter().cloned());
