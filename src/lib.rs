@@ -1,9 +1,9 @@
 extern crate arrayvec;
 extern crate ring;
 extern crate tiny_keccak;
-extern crate varint;
 #[macro_use]
 extern crate error_chain;
+extern crate integer_encoding;
 
 mod errors {
     error_chain! {
@@ -23,6 +23,7 @@ mod errors {
 
 use arrayvec::ArrayVec;
 use errors::*;
+use integer_encoding::VarInt;
 use ring::digest;
 use std::borrow::Borrow;
 use tiny_keccak::Keccak;
@@ -163,44 +164,40 @@ macro_rules! impl_multihash {
 
         impl Multihash {
             /// Converts the Multihash into bytes
-            pub fn to_bytes(&self, output: &mut Vec<u8>) -> Result<()> {
-                match self.0 {
+            pub fn to_bytes(&self, output: &mut Vec<u8>) {
+                let (code, hash) = match self.0 {
                     $(
                         MultihashInner::$name(ref hash) => {
-                            let len = hash.len();
-                            output.reserve_exact(
-                                varint::size_u($code) + varint::size_u(len as u64) + len
-                            );
-                            varint::write_u($code, output)
-                                .chain_err(|| "writing multihash code")?;
-                            varint::write_u(len as u64, output)
-                                .chain_err(|| "writing multihash length")?;
-                            output.extend_from_slice(hash);
+                            ($code, hash.as_ref())
                         },
                     )*
                     MultihashInner::Unknown(code, ref hash) => {
-                        let len = hash.len();
-                        output.reserve_exact(varint::size_u(code) + varint::size_u(len as u64) + len);
-                        varint::write_u(code, output)
-                            .chain_err(|| "writing multihash code")?;
-                        varint::write_u(len as u64, output)
-                            .chain_err(|| "writing multihash length")?;
-                        output.extend_from_slice(hash);
+                        (code, hash.as_ref())
                     },
+                };
+                let len = hash.len();
+                let len_vcode = code.required_space();
+                let len_vlen = len.required_space();
+                let len_v = len_vcode + len_vlen;
+                output.reserve_exact(len_v + len);
+                for _ in 0..len_v {
+                    output.push(0);
                 }
-                Ok(())
+                code.encode_var(&mut output[0..len_vcode]);
+                len.encode_var(&mut output[len_vcode..len_v]);
+                output.extend_from_slice(hash);
             }
 
             /// Converts bytes into a Multihash
             pub fn from_bytes(input: &[u8]) -> Result<(Multihash, &[u8])> {
-                let (code, input) = varint::read_u(input)
-                    .chain_err(|| "reading multihash code")?;
-                let (len, input) = varint::read_u(input)
-                    .chain_err(|| "reading multihash length")?;
+                let (code, len_vcode) = u64::decode_var(input);
+                let (len, len_vlen) = usize::decode_var(&input[len_vcode..]);
+                let len_v = len_vlen + len_vcode;
+                let input = &input[len_v..];
                 match code {
                     $(
                         $code => {
-                            if $len < len || input.len() < len as usize {
+                            if $len < len || input.len() < len {
                                 return Err(ErrorKind::InvalidHashLength(Some(HashAlgo::$name)).into());
                             }
                             let len = len as usize;
@@ -210,10 +207,9 @@ macro_rules! impl_multihash {
                         },
                     )*
                     _ => {
-                        if 128 < len || input.len() < len as usize  {
+                        if 128 < len || input.len() < len  {
                             return Err(ErrorKind::InvalidHashLength(None).into());
                         }
-                        let len = len as usize;
                         let mut buf = Vec::with_capacity(len);
                         buf.extend(input[..len].into_iter().cloned());
                         Ok((Multihash(MultihashInner::Unknown(code, buf)), &input[len..]))

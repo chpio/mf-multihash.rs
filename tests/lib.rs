@@ -30,7 +30,7 @@ fn hashing() {
         }
         let mh = config.hash(&input);
         let mut out = Vec::new();
-        mh.to_bytes(&mut out).unwrap();
+        mh.to_bytes(&mut out);
         assert_eq!(output, out);
 
         Ok(())

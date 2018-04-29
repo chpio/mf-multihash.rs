@@ -13,7 +13,4 @@ arrayvec = "0.4.7"
 error-chain = "0.11.0"
 ring = "0.12.0"
 tiny-keccak = "1.2.1"
-
-[dependencies.varint]
-git = "https://github.com/chpio/rust-varint.git"
-optional = false
+integer-encoding = "1.0.0"
