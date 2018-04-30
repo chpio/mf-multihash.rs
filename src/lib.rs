@@ -1,3 +1,28 @@
+//! > Multihash is a protocol for differentiating outputs from various well-established
+//! > cryptographic hash functions, addressing size + encoding considerations.
+//! >
+//! > It is useful to write applications that future-proof their use of hashes, and allow
+//! > multiple hash functions to coexist.
+//!
+//! <https://github.com/multiformats/multihash>
+//!
+//! ## Supported Hash Types
+//! * `SHA1`
+//! * `SHA2`
+//!   * `SHA2 256`
+//!   * `SHA2 512`
+//! * `SHA3`
+//!   * `SHA3 224`
+//!   * `SHA3 256`
+//!   * `SHA3 384`
+//!   * `SHA3 512`
+//! * `SHAKE`
+//!   * `SHAKE 128`
+//!   * `SHAKE 256`
+//! * `BLAKE`
+//!   * `BLAKE2B`
+//!   * `BLAKE2S`
+
 extern crate arrayvec;
 extern crate integer_encoding;
 extern crate ring;
