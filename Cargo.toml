@@ -1,12 +1,10 @@
 [package]
-authors = ["dignifiedquire <dignifiedquire@gmail.com>"]
 description = "Implementation of the multihash format"
-homepage = "https://github.com/Dignifiedquire/rust-multihash"
-keywords = ["multihash", "ipfs"]
+homepage = "https://github.com/chpio/mf-multihash"
+keywords = ["multiformat", "multihash"]
 license = "MIT"
-name = "multihash"
-readme = "README.md"
-version = "0.2.0"
+name = "mf_multihash"
+version = "0.0.1"
 
 [dependencies]
 arrayvec = "0.4.7"

@@ -1,7 +1,7 @@
-extern crate multihash;
+extern crate mf_multihash;
 extern crate ring;
 
-use multihash::{HashAlgo, Multihash};
+use mf_multihash::{Algo, Multihash};
 use ring::test;
 
 /// Helper function to convert a hex-encoded byte array back into a bytearray
@@ -23,7 +23,7 @@ fn hashing() {
         let input = t.consume_bytes("input");
         let output = t.consume_bytes("output");
 
-        let algo = HashAlgo::from_name(algo).unwrap();
+        let algo = Algo::from_name(algo).unwrap();
         let mut config = algo.config();
         if len != 0 {
             config = config.set_len(len);
@@ -42,7 +42,7 @@ fn multihash_deserialize() {
     let buf =
         hex_to_bytes("1220936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af0000");
     let (hash, slice) = Multihash::from_bytes(buf.as_slice()).unwrap();
-    assert_eq!(hash.algo(), Some(HashAlgo::SHA2256));
+    assert_eq!(hash.algo(), Some(Algo::SHA2256));
     assert_eq!(
         hash.hash(),
         hex_to_bytes("936a185caaa266bb9cbe981e9e05cb78cd732b0b3280eb944412bb6f8f8f07af").as_slice()

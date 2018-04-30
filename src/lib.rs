@@ -73,7 +73,7 @@ macro_rules! gen_hashing {
 macro_rules! impl_multihash {
     ($($name:ident, $name_hr:expr, $code:expr, $len:expr, $hash_lib:ident: $hash_algo:ident;)*) => {
         #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-        pub enum HashAlgo {
+        pub enum Algo {
             $(
                 $name,
             )*
@@ -81,23 +81,23 @@ macro_rules! impl_multihash {
             __Nonexhaustive,
         }
 
-        impl HashAlgo {
-            pub fn from_name<S: Borrow<str>>(name: S) -> Option<HashAlgo> {
+        impl Algo {
+            pub fn from_name<S: Borrow<str>>(name: S) -> Option<Algo> {
                 match name.borrow() {
                     $(
-                        $name_hr => Some(HashAlgo::$name),
+                        $name_hr => Some(Algo::$name),
                     )*
                     _ => None,
                 }
             }
 
-            pub fn config(&self) -> HashConfig {
-                HashConfig::new(*self)
+            pub fn config(&self) -> Config {
+                Config::new(*self)
             }
 
             /// ```rust
-            /// use multihash::{Multihash, HashAlgo};
-            /// let mh: Multihash = HashAlgo::SHA2256.hash("my hash".as_bytes());
+            /// use mf_multihash::{Multihash, Algo};
+            /// let mh: Multihash = Algo::SHA2256.hash("my hash".as_bytes());
             /// ```
             pub fn hash(&self, input: &[u8]) -> Multihash {
                 self.config().hash(input)
@@ -107,9 +107,9 @@ macro_rules! impl_multihash {
             pub fn max_len(&self) -> usize {
                 match self {
                     $(
-                        &HashAlgo::$name => $len,
+                        &Algo::$name => $len,
                     )*
-                    &HashAlgo::__Nonexhaustive => unreachable!(),
+                    &Algo::__Nonexhaustive => unreachable!(),
                 }
             }
 
@@ -117,37 +117,37 @@ macro_rules! impl_multihash {
             pub fn name(&self) -> &'static str {
                 match self {
                     $(
-                        &HashAlgo::$name => $name_hr,
+                        &Algo::$name => $name_hr,
                     )*
-                    &HashAlgo::__Nonexhaustive => unreachable!(),
+                    &Algo::__Nonexhaustive => unreachable!(),
                 }
             }
 
             pub fn code(&self) -> u64 {
                 match self {
                     $(
-                        &HashAlgo::$name => $code,
+                        &Algo::$name => $code,
                     )*
-                    &HashAlgo::__Nonexhaustive => unreachable!(),
+                    &Algo::__Nonexhaustive => unreachable!(),
                 }
             }
         }
 
         #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
-        pub struct HashConfig {
-            algo: HashAlgo,
+        pub struct Config {
+            algo: Algo,
             len: usize,
         }
 
-        impl HashConfig {
-            pub fn new(algo: HashAlgo) -> HashConfig {
-                HashConfig {
+        impl Config {
+            pub fn new(algo: Algo) -> Config {
+                Config {
                     algo: algo,
                     len: algo.max_len(),
                 }
             }
 
-            pub fn algo(&self) -> HashAlgo {
+            pub fn algo(&self) -> Algo {
                 self.algo
             }
 
@@ -155,9 +155,9 @@ macro_rules! impl_multihash {
                 self.len
             }
 
-            pub fn set_len(&self, len: usize) -> HashConfig {
+            pub fn set_len(&self, len: usize) -> Config {
                 assert!(len <= self.algo.max_len(), "Max algo length exceeded");
-                HashConfig {
+                Config {
                     len: len,
                     ..*self
                 }
@@ -166,7 +166,7 @@ macro_rules! impl_multihash {
             pub fn hash(&self, input: &[u8]) -> Multihash {
                 match self.algo {
                     $(
-                        HashAlgo::$name => {
+                        Algo::$name => {
                             let mut output = ArrayVec::from([0u8; $len]);
                             let _ = output.drain(self.len..);
                             gen_hashing!($hash_lib, $hash_algo, input, output.as_mut(), self.len);
@@ -174,7 +174,7 @@ macro_rules! impl_multihash {
                             Multihash(MultihashInner::$name(output))
                         },
                     )*
-                    HashAlgo::__Nonexhaustive => unreachable!(),
+                    Algo::__Nonexhaustive => unreachable!(),
                 }
             }
         }
@@ -286,16 +286,16 @@ macro_rules! impl_multihash {
             }
 
 
-            pub fn algo(&self) -> Option<HashAlgo> {
+            pub fn algo(&self) -> Option<Algo> {
                 match self.0 {
                     $(
-                        MultihashInner::$name(_) => Some(HashAlgo::$name),
+                        MultihashInner::$name(_) => Some(Algo::$name),
                     )*
                     MultihashInner::Unknown(..) => None,
                 }
             }
 
-            pub fn config(&self) -> Option<HashConfig> {
+            pub fn config(&self) -> Option<Config> {
                 self.algo().map(|a| a.config().set_len(self.len()))
             }
         }
