@@ -30,10 +30,8 @@ extern crate tiny_keccak;
 
 use arrayvec::ArrayVec;
 use integer_encoding::VarInt;
-use ring::digest;
 use std::borrow::Borrow;
 use std::{error, fmt};
-use tiny_keccak::Keccak;
 
 #[derive(Debug)]
 pub enum Error {
@@ -57,21 +55,117 @@ impl fmt::Display for Error {
     }
 }
 
-macro_rules! gen_hashing {
-    (ring, $algo:ident, $input:expr, $output:expr, $len:expr) => {
-        let result = digest::digest(&digest::$algo, $input);
-        $output.copy_from_slice(&result.as_ref()[..$len]);
+macro_rules! gen_digest_data {
+    (ring, $algo:ident) => {
+        ::ring::digest::Context
     };
-    (tiny, $algo:ident, $input:expr, $output:expr, $len:expr) => {
-        Keccak::$algo($input, $output);
+    (tiny, $algo:ident) => {
+        ::tiny_keccak::Keccak
     };
-    (u, $algo:ident, $input:expr, $output:expr, $len:expr) => {
+    (u, $algo:ident) => {
+        ()
+    };
+}
+
+macro_rules! gen_digest_new {
+    (ring, $algo:ident) => {
+        ::ring::digest::Context::new(&::ring::digest::$algo)
+    };
+    (tiny, $algo:ident) => {
+        ::tiny_keccak::Keccak::$algo();
+    };
+    (u, $algo:ident) => {
+        unimplemented!();
+    };
+}
+
+macro_rules! gen_digest_update {
+    (ring, $algo:ident, $digester:expr, $input:expr) => {
+        $digester.update($input);
+    };
+    (tiny, $algo:ident, $digester:expr, $input:expr) => {
+        $digester.update($input);
+    };
+    (u, $algo:ident, $digester:expr, $input:expr) => {
+        unimplemented!();
+    };
+}
+
+macro_rules! gen_digest_finish {
+    (ring, $algo:ident, $digester:expr, $max_len:expr, $len:expr) => {{
+        let result = $digester.finish();
+        let mut buf: ArrayVec<[u8; $max_len]> = ArrayVec::new();
+        buf.extend(result.as_ref()[..$len].iter().cloned());
+        buf
+    }};
+    (tiny, $algo:ident, $digester:expr, $max_len:expr, $len:expr) => {{
+        let mut buf: ArrayVec<[u8; $max_len]> = ArrayVec::from([0; $max_len]);
+        $digester.finalize(&mut buf);
+        buf.drain($len..);
+        buf
+    }};
+    (u, $algo:ident, $digester:expr, $max_len:expr, $len:expr) => {
         unimplemented!();
     };
 }
 
 macro_rules! impl_multihash {
     ($($name:ident, $name_hr:expr, $code:expr, $len:expr, $hash_lib:ident: $hash_algo:ident;)*) => {
+        enum DigestInner {
+            $(
+                $name(usize, gen_digest_data!($hash_lib, $hash_algo)),
+            )*
+        }
+
+        pub struct Digest(DigestInner);
+
+        impl Digest {
+            pub fn algo(&self) -> Algo {
+                match self.0 {
+                    $(
+                        DigestInner::$name(..) => Algo::$name,
+                    )*
+                }
+            }
+
+            pub fn config(&self) -> Config {
+                match self.0 {
+                    $(
+                        DigestInner::$name(len, ..) => {
+                            Config {
+                                algo: Algo::$name,
+                                len: len
+                            }
+                        }
+                    )*
+                }
+            }
+
+            pub fn update(&mut self, input: &[u8]) {
+                #[allow(unused_variables)]
+                match self.0 {
+                    $(
+                        DigestInner::$name(_, ref mut digester) => {
+                            gen_digest_update!($hash_lib, $hash_algo, digester, input);
+                        }
+                    )*
+                }
+            }
+
+            pub fn finish(self) -> Multihash {
+                #[allow(unreachable_code, unused_variables)]
+                match self.0 {
+                    $(
+                        DigestInner::$name(len, digester) => {
+                            let buf =
+                                gen_digest_finish!($hash_lib, $hash_algo, digester, $len, len);
+                            Multihash(MultihashInner::$name(buf))
+                        }
+                    )*
+                }
+            }
+        }
+
         #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
         pub enum Algo {
             $(
@@ -91,16 +185,17 @@ macro_rules! impl_multihash {
                 }
             }
 
+            // TODO: from_code
+
             pub fn config(&self) -> Config {
-                Config::new(*self)
+                Config {
+                    algo: *self,
+                    len: self.max_len(),
+                }
             }
 
-            /// ```rust
-            /// use mf_multihash::{Multihash, Algo};
-            /// let mh: Multihash = Algo::SHA2256.hash("my hash".as_bytes());
-            /// ```
-            pub fn hash(&self, input: &[u8]) -> Multihash {
-                self.config().hash(input)
+            pub fn digest(&self) -> Digest {
+                self.config().digest()
             }
 
             /// Returns the len of the hash data
@@ -140,13 +235,6 @@ macro_rules! impl_multihash {
         }
 
         impl Config {
-            pub fn new(algo: Algo) -> Config {
-                Config {
-                    algo: algo,
-                    len: algo.max_len(),
-                }
-            }
-
             pub fn algo(&self) -> Algo {
                 self.algo
             }
@@ -158,20 +246,18 @@ macro_rules! impl_multihash {
             pub fn set_len(&self, len: usize) -> Config {
                 assert!(len <= self.algo.max_len(), "Max algo length exceeded");
                 Config {
+                    algo: self.algo,
                     len: len,
-                    ..*self
                 }
             }
 
-            pub fn hash(&self, input: &[u8]) -> Multihash {
+            pub fn digest(&self) -> Digest {
+                #[allow(unreachable_code, unused_variables)]
                 match self.algo {
                     $(
                         Algo::$name => {
-                            let mut output = ArrayVec::from([0u8; $len]);
-                            let _ = output.drain(self.len..);
-                            gen_hashing!($hash_lib, $hash_algo, input, output.as_mut(), self.len);
-                            #[allow(unreachable_code)]
-                            Multihash(MultihashInner::$name(output))
+                            let digester = gen_digest_new!($hash_lib, $hash_algo);
+                            Digest(DigestInner::$name(self.len, digester))
                         },
                     )*
                     Algo::__Nonexhaustive => unreachable!(),
@@ -296,7 +382,15 @@ macro_rules! impl_multihash {
             }
 
             pub fn config(&self) -> Option<Config> {
-                self.algo().map(|a| a.config().set_len(self.len()))
+                match self.0 {
+                    $(
+                        MultihashInner::$name(ref hash) => Some(Config {
+                            algo: Algo::$name,
+                            len: hash.len(),
+                        }),
+                    )*
+                    MultihashInner::Unknown(..) => None,
+                }
             }
         }
     }
@@ -308,13 +402,13 @@ impl_multihash! {
     SHA2256, "SHA2-256", 0x12, 32, ring: SHA256;
     SHA2512, "SHA2-512", 0x13, 64, ring: SHA512;
 
-    SHA3224, "SHA3-224", 0x17, 28, tiny: sha3_224;
-    SHA3256, "SHA3-256", 0x16, 32, tiny: sha3_256;
-    SHA3384, "SHA3-384", 0x15, 48, tiny: sha3_384;
-    SHA3512, "SHA3-512", 0x14, 64, tiny: sha3_512;
+    SHA3224, "SHA3-224", 0x17, 28, tiny: new_sha3_224;
+    SHA3256, "SHA3-256", 0x16, 32, tiny: new_sha3_256;
+    SHA3384, "SHA3-384", 0x15, 48, tiny: new_sha3_384;
+    SHA3512, "SHA3-512", 0x14, 64, tiny: new_sha3_512;
 
-    SHAKE128, "SHAKE-128", 0x18, 16, tiny: shake128;
-    SHAKE256, "SHAKE-256", 0x19, 32, tiny: shake256;
+    SHAKE128, "SHAKE-128", 0x18, 16, tiny: new_shake128;
+    SHAKE256, "SHAKE-256", 0x19, 32, tiny: new_shake256;
 
     BLAKE2B, "BLAKE2B", 0x40, 64, u: u;
     BLAKE2S, "BLAKE2S", 0x41, 32, u: u;

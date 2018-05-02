@@ -28,7 +28,9 @@ fn hashing() {
         if len != 0 {
             config = config.set_len(len);
         }
-        let mh = config.hash(&input);
+        let mut digest = config.digest();
+        digest.update(&input);
+        let mh = digest.finish();
         let mut out = Vec::new();
         mh.to_bytes(&mut out);
         assert_eq!(output, out);
