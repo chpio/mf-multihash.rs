@@ -185,7 +185,14 @@ macro_rules! impl_multihash {
                 }
             }
 
-            // TODO: from_code
+            pub fn from_code(code: u64) -> Option<Algo> {
+                match code {
+                    $(
+                        $code => Some(Algo::$name),
+                    )*
+                    _ => None,
+                }
+            }
 
             pub fn config(&self) -> Config {
                 Config {
